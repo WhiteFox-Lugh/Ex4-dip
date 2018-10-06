@@ -9,14 +9,16 @@ mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
 
 # settings
 d = 28 * 28
+img_div = 255
 img_len = 10000
 c = 10
 # mid layer num
 m = 30
+batch_size = 100
 
 
 # init weight and bias
-np.random.seed(334)
+np.random.seed(3304)
 w1 = np.random.normal(0, math.sqrt(1 / d), m * d)
 w1 = w1.reshape((m, d))
 w2 = np.random.normal(0, math.sqrt(1 / m), c * m)
@@ -25,22 +27,21 @@ b1 = np.random.normal(0, math.sqrt(1 / d), m)
 b2 = np.random.normal(0, math.sqrt(1 / m), c)
 
 
-# input_layer
+# input_layer : (1, batch_size * d) -> (d = 784, batch_size = 100)
 def input_layer(in_x):
-    return in_x.reshape(d)
+    tmp = in_x.reshape(batch_size, d)
+    return tmp.T / img_div
 
 
-# mid_layer
+# mid_layer : (d = 784, batch_size = 100) -> (m = 30, batch_size = 100)
 def mid_layer(in_x):
-    tmp = np.dot(w1, in_x) + b1
-    result = f_sigmoid(tmp)
+    result = np.apply_along_axis(lambda l: f_sigmoid(np.dot(w1, l) + b1), 0, [in_x[i] for i in range(in_x.shape[0])])
     return result
 
 
-# output_layer
+# output_layer : (m = 30, batch_size = 100) -> (c = 10, batch_size = 100)
 def output_layer(in_x):
-    tmp = np.dot(w2, in_x) + b2
-    result = f_softmax(tmp)
+    result = np.apply_along_axis(lambda l: f_softmax(np.dot(w2, l) + b2), 0, [in_x[i] for i in range(in_x.shape[0])])
     return result
 
 
@@ -56,31 +57,59 @@ def f_softmax(t):
     return result
 
 
+# one-hot vector
+def one_hot_vector(t):
+    return np.identity(10)[t]
+
+
+# calculate cross entropy
+def cal_cross_entropy(y, label):
+    e = 0
+    for i in range(batch_size):
+        for j in range(c):
+            e += (-label[i][j] * np.log(y[j]))
+
+    return e
+
+
+# print result
+def show_result(t):
+    print("******* result *******")
+    entropy = cal_cross_entropy(result, t_label_one_hot)
+    entropy_average = np.sum(entropy) / batch_size
+    print("Cross entropy av: {0}".format(entropy_average))
+    for i in range(batch_size):
+        print("Img:{0} -> Class:{1}".format(i, np.argmax(t.T[i])))
+
+
+# main
 if __name__ == "__main__":
+    # loading data
     X, Y = mndata.load_training()
     X = np.array(X)
     X = X.reshape((X.shape[0], 28, 28))
     Y = np.array(Y)
 
-    # number input
-    print("input an integer from 0 to 9999.")
-    idx = int(sys.stdin.readline(), 10)
+    # random choice
+    nums = list(range(0, int((X.size / d))))
+    choice_nums = np.random.choice(nums, batch_size, replace=False)
 
-    # print (X[idx])
-    output_input_layer = input_layer(X[idx])
+    input_img = []
+    t_label = []
+    for i in range(batch_size):
+        input_img = np.hstack((input_img, X[choice_nums[i]].reshape(d)))
+        t_label = t_label + [ Y[choice_nums[i]] ]
+
+    # make one-hot vector
+    t_label_one_hot = one_hot_vector(t_label)
+
+    # 3-layer NN main
+    output_input_layer = input_layer(input_img)
     output_mid_layer = mid_layer(output_input_layer)
-    output_output_layer = output_layer(output_mid_layer)
-    print("debug softmax summation -> maybe printed [1] :-) ")
-    print(np.sum(output_output_layer))
+    result = output_layer(output_mid_layer)
+    show_result(result)
 
-    # for debug area
-    print("output_mid_layer is below")
-    print(output_mid_layer)
-    print("output_output_layer is below")
-    print(output_output_layer)
-    # --- debug code area end ---
-
-    plt.imshow(X[idx], cmap=cm.gray)
-    plt.show()
+    #plt.imshow(X[idx], cmap=cm.gray)
+    #plt.show()
     # print(Y[idx])
-    print(np.argmax(output_output_layer))
+

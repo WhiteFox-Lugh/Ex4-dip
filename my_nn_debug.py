@@ -17,18 +17,18 @@ c = 10
 # eta is learning rate
 eta = 0.01
 # mid layer num
-m = 528
-# m = 30
+# m = 528
+m = 100
 
-batch_size = 100
+batch_size = 1
 per_epoch = mnist_data // batch_size
 epoch = 10
 
 
 # input_layer : (1, batch_size * d) -> (d = 784, batch_size)
 def input_layer(in_x):
-    tmp = in_x.reshape(batch_size, d)
-    return tmp.T / img_div
+    tmp = in_x.reshape(d, batch_size)
+    return tmp / img_div
 
 
 # mid_layer : (d = 784, batch_size) -> (m = 30, batch_size)
@@ -59,7 +59,7 @@ def f_softmax(t):
 
 # one-hot vector
 def one_hot_vector(t):
-    return np.identity(10)[t]
+    return np.identity(c)[t]
 
 
 # calculate cross entropy
@@ -67,38 +67,13 @@ def cal_cross_entropy(prob, label):
     e = 0
     y_p = prob.T
     # y_p (100, 10)
-    # print(y_p)
+    print(y_p)
     for j in range(batch_size):
         for k in range(c):
             e += (-label[j][k] * np.log(y_p[j][k]))
             # print("({0}, {1}) : {2}".format(j, k, e))
 
     return e
-
-
-# numerical diff
-def diff(f, x):
-    h = 0.0001
-    return (f(x+h) - f(x-h)) / (2*h)
-
-# gradient
-def gradient(f, x):
-    h = 0.0001
-    g = np.zeros_like(x)
-    x_size = x.size
-
-    for i in range(x_size):
-        tmp = x[i]
-        # find f(x+h)
-        x[i] = tmp + h
-        f_xph = f(x)
-        # find f(x-h)
-        x[i] = tmp - h
-        f_xmh = f(x)
-        g[i] = (f_xph - f_xmh) / (2*h)
-        x[i] = tmp
-
-    return g
 
 
 # main
@@ -124,15 +99,15 @@ if __name__ == "__main__":
 
     for itr in p(range(1000)):
         # random choice
-        nums = list(range(0, int((X.size / d))))
+        nums = list(range(0, X.size // d))
         choice_nums = np.random.choice(nums, batch_size, replace=False)
         input_img = np.array([], dtype='int32')
         t_label = np.array([], dtype='int32')
         t_label_one_hot = np.array([], dtype='int32')
 
         for i in range(batch_size):
-            input_img = np.append(input_img, X[choice_nums[i]].reshape((d, 1)))
-            t_label = np.append([Y[choice_nums[i]]], t_label)
+            input_img = np.append(X[choice_nums[i]].reshape(d), input_img)
+            t_label = np.append(Y[choice_nums[i]], t_label)
 
         # make one-hot vector
         t_label_one_hot = one_hot_vector(t_label)
@@ -193,6 +168,7 @@ if __name__ == "__main__":
         iteration = np.append(itr + 1, iteration)
         loss = np.append(entropy_average, loss)
 
+
     plt.plot(iteration, loss)
     plt.xlim([0, 1000])
     plt.ylim([0, 5])
@@ -202,4 +178,7 @@ if __name__ == "__main__":
     # plt.imshow(X[idx], cmap=cm.gray)
     plt.show()
     # print(Y[idx])
+
+    # save parameter
+    np.savez('test.npz', w1=w1, w2=w2, b1=b1, b2=b2)
 

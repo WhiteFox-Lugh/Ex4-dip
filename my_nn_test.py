@@ -4,7 +4,6 @@ import sys
 from mnist import MNIST
 import matplotlib.pyplot as plt
 from pylab import cm
-from progressbar import ProgressBar
 
 mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
 
@@ -32,8 +31,10 @@ Y = np.array(Y)
 network = {}
 
 # for Exercise 4
-# network = np.load(params.npz)
+"""
+network = np.load('params.npz')
 nums = list(range(0, X.size // d))
+"""
 
 w1_tmp = np.random.normal(0, math.sqrt(1 / d), m * d)
 network['w1'] = w1_tmp.reshape((m, d))
@@ -43,7 +44,6 @@ b1_tmp = np.random.normal(0, math.sqrt(1 / d), m)
 network['b1'] = b1_tmp.reshape((m, 1))
 b2_tmp = np.random.normal(0, math.sqrt(1 / m), c)
 network['b2'] = b2_tmp.reshape((c, 1))
-
 
 # sigmoid function
 def f_sigmoid(t):
@@ -167,13 +167,12 @@ if __name__ == "__main__":
             print("invalid input ;-(")
 
     input_img = X[idx]
-    network['t_label'] = Y[idx]
 
     # forwarding
     forward_data = forward()
     y = np.argmax(forward_data['y'], axis=0)
-    
+
     # -- for showing images --
     plt.imshow(input_img, cmap=cm.gray)
-    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, network['t_label']))
+    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, Y[idx]))
     plt.show()

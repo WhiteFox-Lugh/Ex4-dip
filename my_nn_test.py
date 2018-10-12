@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import ndarray
 import math
 import sys
 from mnist import MNIST
@@ -7,157 +8,165 @@ from pylab import cm
 
 mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
 
-# settings
-d = 28 * 28
-img_div = 255
-c = 10
-# eta is learning rate
-eta = 0.01
-# mid layer num
-m = 200
-batch_size = 1
-per_epoch = 60000 // batch_size
-epoch = 15
 
-# init vars
-# np.random.seed(3304)
-# X, Y = mndata.load_training()
-X, Y = mndata.load_testing()
-X = np.array(X)
-X = X.reshape((X.shape[0], 28, 28))
-Y = np.array(Y)
+class NNTest:
+    """ Class of Neural Network (testing).
 
-# for Exercise 1
-network = {}
+    Attributes:
+        network: data and parameters in NN.
 
-# for Exercise 4
-"""
-network = np.load('params.npz')
-nums = list(range(0, X.size // d))
-"""
+    """
+    d = 28 * 28
+    img_div = 255
+    c = 10
+    m = 200
+    batch_size = 1
+    X, Y = mndata.load_testing()
+    X = np.array(X)
+    X = X.reshape((X.shape[0], 28, 28))
+    Y = np.array(Y)
 
-w1_tmp = np.random.normal(0, math.sqrt(1 / d), m * d)
-network['w1'] = w1_tmp.reshape((m, d))
-w2_tmp = np.random.normal(0, math.sqrt(1 / m), c * m)
-network['w2'] = w2_tmp.reshape((c, m))
-b1_tmp = np.random.normal(0, math.sqrt(1 / d), m)
-network['b1'] = b1_tmp.reshape((m, 1))
-b2_tmp = np.random.normal(0, math.sqrt(1 / m), c)
-network['b2'] = b2_tmp.reshape((c, 1))
+    def __init__(self):
+        np.random.seed(3304)
+        # for Exercise 1
+        self.network = {}
+        w1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m * self.d)
+        self.network['w1'] = w1_tmp.reshape((self.m, self.d))
+        w2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c * self.m)
+        self.network['w2'] = w2_tmp.reshape((self.c, self.m))
+        b1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m)
+        self.network['b1'] = b1_tmp.reshape((self.m, 1))
+        b2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c)
+        self.network['b2'] = b2_tmp.reshape((self.c, 1))
 
-# sigmoid function
-def f_sigmoid(t):
+        # for Exercise 4
+        # network = np.load('params.npz')
+
+
+def f_sigmoid(t: ndarray) -> ndarray:
+    """ Apply sigmoid function.
+
+    Args:
+        t: The input value of this function.
+
+    Returns:
+        The output of sigmoid function.
+
+    """
     return 1.0 / (1.0 + np.exp(-t))
 
 
-# softmax function
-def f_softmax(t):
+def f_softmax(t: ndarray) -> ndarray:
+    """ Apply softmax function.
+
+    Args:
+        t: The input value of this function.
+
+    Returns:
+        The output of this function.
+
+    """
     alpha = np.max(t)
     r = np.exp(t - alpha) / np.sum(np.exp(t - alpha))
     return r
 
 
-# input_layer : (1, batch_size * d) -> (d = 784, batch_size)
-def input_layer(x):
-    tmp = x.reshape(batch_size, d)
-    # tmp = x.reshape(batch_size, d)
-    return tmp.T / img_div
+def input_layer(x: ndarray, nn: NNTest) -> ndarray:
+    """ Input layer of NN.
+
+    Args:
+        x: Array of MNIST image data [shape -> (1, d = 784)].
+        nn: Extends NNTest class.
+
+    Returns:
+        Normalized and reshaped Array of MNIST image data (type: ndarray).
+        The shape of array is (d = 784, 1).
+
+    """
+    tmp = x.reshape(nn.batch_size, nn.d)
+    return tmp.T / nn.img_div
 
 
-# mid_layer : (d = 784, batch_size) -> (m, batch_size)
-def mid_layer(w, x, b):
+def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
+    """ Affine transformation in hidden layer.
+
+    Args:
+        w: Weight
+        x: Input data
+        b: Bias
+
+    Returns:
+        The array applied affine transformation function.
+
+    """
     return np.dot(w, x) + b
 
 
-# mid_layer_activation_function
-def mid_layer_activation(t):
+def mid_layer_activation(t: ndarray) -> ndarray:
+    """ Apply activation function in hidden layer.
+
+    Args:
+        t: input from previous affine layer.
+
+    Returns:
+        The array applied activation function.
+        The shape of array is (m, 1).
+    """
     return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
 
 
-# output_layer : (m, batch_size) -> (c = 10, batch_size)
-def output_layer(w, x, b):
-    return np.dot(w, x) + b
+def output_layer_activation(t: ndarray) -> ndarray:
+    """ Apply activation function in output layer.
 
+    Args:
+        t: input from previous affine layer.
 
-# output_layer_activation_function
-def output_layer_activation(t):
+    Returns:
+        The array applied activation function (softmax function).
+        The shape of array is (c, 1).
+
+    """
     return np.apply_along_axis(f_softmax, axis=0, arr=t)
 
 
-# one-hot vector
-def one_hot_vector(t):
-    return np.identity(c)[t]
+def forward(nn: NNTest, idx: int):
+    """ Forwarding
 
+    Args:
+        nn: Class NNTest
+        idx: input from standard input
 
-# calculate cross entropy
-def cal_cross_entropy(prob, label):
-    e = np.array([], dtype="float32")
-    y_p = prob.T
-    for j in range(batch_size):
-        tmp_e = 0
-        for k in range(c):
-            tmp_e += (-label[j][k] * np.log(y_p[j][k]))
-        e = np.append(e, tmp_e)
-    return e
+    Returns:
+        Dictionary data including the calculation result in each layer.
 
-
-# forwarding
-def forward():
+    """
     data_forward = {}
 
     # input_layer : (1, batch_size * d) -> (d = 784, batch_size)
-    output_input_layer = input_layer(input_img)
+    output_input_layer = input_layer(nn.X[idx], nn)
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
-    a_mid_layer = mid_layer(network['w1'], output_input_layer, network['b1'])
+    a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
     z_mid_layer = mid_layer_activation(a_mid_layer)
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
-    a_output_layer = output_layer(network['w2'], z_mid_layer, network['b2'])
+    a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
     result = output_layer_activation(a_output_layer)
-
-    # find cross entropy
-    # entropy = cal_cross_entropy(result, network['t_label_one_hot'])
-    # entropy_average = np.sum(entropy, axis=0) / batch_size
 
     data_forward['x1'] = output_input_layer
     data_forward['a1'] = a_mid_layer
     data_forward['z1'] = z_mid_layer
     data_forward['a2'] = a_output_layer
     data_forward['y'] = result
-    # data_forward['avg_entropy'] = entropy_average
 
     return data_forward
 
-"""
-# back propagation
-def back_prop(data):
-    # 1. softmax and cross entropy
-    grad_en_ak = (data['y'] - network['t_label_one_hot'].T) / batch_size
 
-    # 2. find grad(E_n, X), grad(E_n, W2), grad(E_n, b2)
-    grad_en_x2 = np.dot(network['w2'].T, grad_en_ak)
-    grad_en_w2 = np.dot(grad_en_ak, data['z1'].T)
-    grad_en_b2 = grad_en_ak.sum(axis=1)
-    grad_en_b2 = grad_en_b2.reshape((c, 1))
+def main():
+    """
+    This is the main function.
+    """
 
-    # 3. back propagate : sigmoid
-    bp_sigmoid = np.dot(network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+    nn = NNTest()
 
-    grad_en_x1 = np.dot(network['w1'].T, bp_sigmoid)
-    grad_en_w1 = np.dot(bp_sigmoid, data['x1'].T)
-    grad_en_b1 = bp_sigmoid.sum(axis=1)
-    grad_en_b1 = grad_en_b1.reshape((m, 1))
-
-    # 5. update parameter
-    network['w1'] -= eta * grad_en_w1
-    network['w2'] -= eta * grad_en_w2
-    network['b1'] -= eta * grad_en_b1
-    network['b2'] -= eta * grad_en_b2
-
-"""
-
-# main
-if __name__ == "__main__":
-    # --- number input ---
     while True:
         print("input an integer from 0 to 9999.")
         idx = int(sys.stdin.readline(), 10)
@@ -166,13 +175,15 @@ if __name__ == "__main__":
         else:
             print("invalid input ;-(")
 
-    input_img = X[idx]
-
     # forwarding
-    forward_data = forward()
+    forward_data = forward(nn, idx)
     y = np.argmax(forward_data['y'], axis=0)
 
     # -- for showing images --
-    plt.imshow(input_img, cmap=cm.gray)
-    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, Y[idx]))
+    plt.imshow(nn.X[idx], cmap=cm.gray)
+    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
     plt.show()
+
+
+if __name__ == "__main__":
+    main()

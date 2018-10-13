@@ -1,4 +1,9 @@
 .idea/
 *ubyte
 *.npz
-
+*.png
+*.tex
+submit*/
+.vscode
+*.pdf
+*.zip

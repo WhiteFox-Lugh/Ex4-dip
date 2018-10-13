@@ -115,8 +115,8 @@ def mid_layer_activation(t: ndarray) -> ndarray:
     return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
 
 
-def output_layer_activation(t: ndarray) -> ndarray:
-    """ Apply activation function in output layer.
+def output_layer_apply(t: ndarray) -> ndarray:
+    """ Apply softmax function in output layer.
 
     Args:
         t: input from previous affine layer.
@@ -149,7 +149,7 @@ def forward(nn: NNTest, idx: int):
     z_mid_layer = mid_layer_activation(a_mid_layer)
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
-    result = output_layer_activation(a_output_layer)
+    result = output_layer_apply(a_output_layer)
 
     data_forward['x1'] = output_input_layer
     data_forward['a1'] = a_mid_layer

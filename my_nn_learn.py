@@ -57,6 +57,19 @@ def f_sigmoid(t: ndarray) -> ndarray:
     return 1.0 / (1.0 + np.exp(-t))
 
 
+def relu(t: ndarray) -> ndarray:
+    """ Apply ReLU function.
+
+    Args:
+        t: The input value of this function.
+
+    Returns:
+        The output of ReLU function.
+
+    """
+    return np.maximum(t, 0)
+
+
 def f_softmax(t: ndarray) -> ndarray:
     """ Apply softmax function.
 
@@ -113,11 +126,13 @@ def mid_layer_activation(t: ndarray) -> ndarray:
         The array applied activation function.
         The shape of array is (m, 1).
     """
+
     return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    # return np.apply_along_axis(relu, axis=0, arr=t)
 
 
-def output_layer_activation(t: ndarray) -> ndarray:
-    """ Apply activation function in output layer.
+def output_layer_apply(t: ndarray) -> ndarray:
+    """ Apply softmax function in output layer.
 
     Args:
         t: input from previous affine layer.
@@ -187,7 +202,7 @@ def forward(nn: NNLearn, input_img: ndarray):
     z_mid_layer = mid_layer_activation(a_mid_layer)
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
-    result = output_layer_activation(a_output_layer)
+    result = output_layer_apply(a_output_layer)
 
     # find cross entropy
     entropy = cal_cross_entropy(nn, result, nn.network['t_label_one_hot'])
@@ -280,7 +295,10 @@ def main():
             plt.show()
 
     # save parameters
-    np.savez('params.npz', w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'])
+    print("パラメータを保存するファイルの名前を ***.npz の形式で入力してください")
+    filename = sys.stdin.readline()
+    np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
+             b2=nn.network['b2'], loss=loss)
 
 
 if __name__ == "__main__":

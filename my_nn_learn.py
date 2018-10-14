@@ -25,7 +25,7 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 15
+    epoch = 3
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)
@@ -239,6 +239,7 @@ def back_prop(nn: NNLearn, data: dict):
     # 3. back propagate : sigmoid
     bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
 
+    # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
     grad_en_x1 = np.dot(nn.network['w1'].T, bp_sigmoid)
     grad_en_w1 = np.dot(bp_sigmoid, data['x1'].T)
     grad_en_b1 = bp_sigmoid.sum(axis=1)
@@ -258,10 +259,11 @@ def main():
 
     nn = NNLearn()
     nums = list(range(0, nn.X.size // nn.d))
+
     loss = np.array([])
     iteration = np.array([], dtype='int32')
 
-    for itr in p(range(nn.epoch * nn.per_epoch)):
+    for itr in p(range(nn.per_epoch * nn.epoch)):
         # init
         input_img = np.array([], dtype='int32')
         t_label = np.array([], dtype='int32')
@@ -281,6 +283,9 @@ def main():
         # forwarding
         forward_data = forward(nn, input_img)
 
+        # print cross entropy
+        # print("average cross entropy -> {0}".format(forward_data['avg_entropy']))
+
         # back propagation
         back_prop(nn, forward_data)
 
@@ -296,7 +301,9 @@ def main():
 
     # save parameters
     print("パラメータを保存するファイルの名前を ***.npz の形式で入力してください")
-    filename = sys.stdin.readline()
+    filename = str(sys.stdin.readline())
+    filename = filename.replace('\n', '')
+    filename = filename.replace('\r', '')
     np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
              b2=nn.network['b2'], loss=loss)
 

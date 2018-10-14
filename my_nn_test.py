@@ -39,9 +39,6 @@ class NNTest:
         b2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c)
         self.network['b2'] = b2_tmp.reshape((self.c, 1))
 
-        # for Exercise 4
-        # network = np.load('params.npz')
-
 
 def f_sigmoid(t: ndarray) -> ndarray:
     """ Apply sigmoid function.
@@ -166,14 +163,54 @@ def main():
     """
 
     nn = NNTest()
-
+    err_time = 0
     while True:
-        print("input an integer from 0 to 9999.")
-        idx = int(sys.stdin.readline(), 10)
-        if 0 <= idx < 10000:
-            break
+        if err_time >= 3:
+            print("プログラムを終了します...")
+            sys.exit(0)
+
+        try:
+            print("0以上9999以下の整数を1つ入力してください.")
+            idx = int(sys.stdin.readline(), 10)
+
+            if 0 <= idx < 10000:
+                break
+            else:
+                err_time = err_time + 1
+                print("Error: 0以上9999以下の整数ではありません")
+
+        except Exception as e:
+            err_time = err_time + 1
+            print(e)
+
+    # load parameter
+    err_time = 0
+    while True:
+        try:
+            if err_time >= 3:
+                print("プログラムを終了します...")
+                sys.exit(0)
+
+            print("パラメータを保存してあるファイル名を入力して下さい.")
+            print("読み込まない場合は何も入力せずに Enter を押してください")
+            filename = str(sys.stdin.readline())
+            filename = filename.replace('\n', '')
+            filename = filename.replace('\r', '')
+            if filename == "":
+                print("パラメータをランダムに初期化してテストを行います")
+                break
+            load_param = np.load(filename)
+
+        except Exception as e:
+            print("エラー: {0}".format(e))
+            err_time = err_time + 1
+
         else:
-            print("invalid input ;-(")
+            nn.network['w1'] = load_param['w1']
+            nn.network['w2'] = load_param['w2']
+            nn.network['b1'] = load_param['b1']
+            nn.network['b2'] = load_param['b2']
+            break
 
     # forwarding
     forward_data = forward(nn, idx)
@@ -183,6 +220,27 @@ def main():
     plt.imshow(nn.X[idx], cmap=cm.gray)
     print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
     plt.show()
+
+    """
+    correct = 0
+    incorrect = 0
+    for idx in range(10000):
+        forward_data = forward(nn, idx)
+        y = np.argmax(forward_data['y'], axis=0)
+        if int(nn.Y[idx]) == int(y):
+            correct = correct + 1
+        else :
+            incorrect = incorrect + 1
+            print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
+
+    accuracy = correct / (correct + incorrect)
+    print("accuracy -> {0}".format(accuracy))
+
+    # -- for showing images --
+    plt.imshow(nn.X[idx], cmap=cm.gray)
+    #print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
+    plt.show()
+    """
 
 
 if __name__ == "__main__":

@@ -138,7 +138,7 @@ def forward(nn: NNTest, idx: int):
 
 変数名と3層ニューラルネットワークの対応は以下の通りである。
 
-- `output_input_layer` ... 入力層からの出力。784 行 1 列の行列である。
+- `output_input_layer` ... 入力層からの出力。784 行 1 列の行列である。画素値は 0~255 の値であるが、ここで正規化を行う。
 - `a_mid_layer` ... 中間層でのアフィン変換後の値。`m` 行 1 列の行列である。
 - `z_mid_layer` ... `a_mid_layer` に活性化関数（課題 1 ではシグモイド関数）を適用したもの。`m` 行 1 列の行列である。
 - `a_output_layer` ... 出力層でのアフィン変換後の値。
@@ -163,7 +163,7 @@ Recognition result -> [5]
 
 Process finished with exit code 0
 ```
-<center><small>実行結果4 NNTest クラスのソースコード</small></center><br>
+<center><small>実行結果1 my_nn_test.py</small></center><br>
 
 認識結果が 5、正解ラベルが 1 という結果が標準出力に出力されていることがわかる。また、以下の 図1 の画像が表示された。
 
@@ -174,3 +174,7 @@ Process finished with exit code 0
 <center><small>図1 表示された画像</small></center><br>
 
 これにより、正しく動作していることが確認できた。
+
+## 4. 工夫点と問題点
+
+問題点として、整数の入力を標準入力から行うときに int 型でない値を入力したときに例外処理を行なっていないため、プログラムが不正終了してしまう点が挙げられる。

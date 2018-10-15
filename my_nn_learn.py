@@ -25,7 +25,7 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 3
+    epoch = 20
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)
@@ -57,7 +57,7 @@ def f_sigmoid(t: ndarray) -> ndarray:
     return 1.0 / (1.0 + np.exp(-t))
 
 
-def relu(t: ndarray) -> ndarray:
+def relu_forward(t: ndarray) -> ndarray:
     """ Apply ReLU function.
 
     Args:
@@ -65,9 +65,22 @@ def relu(t: ndarray) -> ndarray:
 
     Returns:
         The output of ReLU function.
+    """
+
+    return np.maximum(t, 0)
+
+
+def relu_backward(t: ndarray) -> ndarray:
+    """ find gradient of ReLU function.
+
+    Args:
+        t: The input value of this function.
+
+    Returns:
+        The output of this function.
 
     """
-    return np.maximum(t, 0)
+    return np.where(t > 0, 1, 0)
 
 
 def f_softmax(t: ndarray) -> ndarray:
@@ -127,8 +140,8 @@ def mid_layer_activation(t: ndarray) -> ndarray:
         The shape of array is (m, 1).
     """
 
-    return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    # return np.apply_along_axis(relu, axis=0, arr=t)
+    # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
 def output_layer_apply(t: ndarray) -> ndarray:
@@ -237,7 +250,11 @@ def back_prop(nn: NNLearn, data: dict):
     grad_en_b2 = grad_en_b2.reshape((nn.c, 1))
 
     # 3. back propagate : sigmoid
-    bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+    # sigmoid function ver.
+    # bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+
+    # relu function ver.
+    bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * relu_backward(data['a1'])
 
     # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
     grad_en_x1 = np.dot(nn.network['w1'].T, bp_sigmoid)

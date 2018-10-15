@@ -2,8 +2,10 @@
 *ubyte
 *.npz
 *.png
-*.tex
 submit*/
 .vscode
 *.pdf
 *.zip
+*.aux
+*.dvi
+*.log

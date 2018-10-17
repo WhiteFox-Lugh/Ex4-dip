@@ -25,12 +25,21 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 20
+    epoch = 50
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)
     X = X.reshape((X.shape[0], 28, 28))
     Y = np.array(Y)
+    # --- for Momentum SGD ---
+    alpha = 0.9
+    bp_param = {}
+    bp_param['msgd_w1'] = np.zeros((m, d))
+    bp_param['msgd_w2'] = np.zeros((c, m))
+    # --- for AdaGrad ---
+    bp_param['ag_h1'] = 10 ** (-8)
+    bp_param['ag_h2'] = 10 ** (-8)
+    bp_param['lr'] = 0.001
 
     def __init__(self):
         self.network = {}
@@ -163,6 +172,7 @@ def one_hot_vector(t: ndarray, c: int) -> ndarray:
 
     Args:
         t: correct label
+        c: number of class
 
     Returns:
         correct label (in one-hot vector expression)
@@ -192,6 +202,54 @@ def cal_cross_entropy(nn: NNLearn, prob: ndarray, label: ndarray) -> ndarray:
             tmp_e += (-label[j][k] * np.log(y_p[j][k]))
         e = np.append(e, tmp_e)
     return e
+
+
+def sgd(nn: NNLearn, bp_data: dict):
+    """ Applying Stochastic Gradient Descent (SGD).
+
+    Args:
+        nn: Class NNLearn
+        bp_data: data of back propagation
+
+    """
+    nn.network['w1'] -= nn.eta * bp_data['g_en_w1']
+    nn.network['w2'] -= nn.eta * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
+def momentum_sgd(nn: NNLearn, bp_data: dict):
+    """ Applying Momentum Stochastic Gradient Descent.
+
+    Args:
+        nn: Class NNLearn
+        bp_data: data of back propagation
+
+    """
+    nn.bp_param['msgd_w1'] = (nn.alpha * nn.bp_param['msgd_w1']) - (nn.eta * bp_data['g_en_w1'])
+    nn.bp_param['msgd_w2'] = (nn.alpha * nn.bp_param['msgd_w2']) - (nn.eta * bp_data['g_en_w2'])
+    nn.network['w1'] += nn.bp_param['msgd_w1']
+    nn.network['w2'] += nn.bp_param['msgd_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
+def adagrad(nn: NNLearn, bp_data: dict):
+    """ Applying AdaGrad
+
+    Args:
+        nn:
+        bp_data:
+
+    Returns:
+
+    """
+    nn.bp_param['ag_h1'] = nn.bp_param['ag_h1'] + (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['ag_h2'] = nn.bp_param['ag_h2'] + (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.network['w1'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h1'])) * bp_data['g_en_w1']
+    nn.network['w2'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h2'])) * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
 def forward(nn: NNLearn, input_img: ndarray):
@@ -239,34 +297,40 @@ def back_prop(nn: NNLearn, data: dict):
         data: calculating result in forwarding
 
     """
+    bp_data = {}
 
     # 1. softmax and cross entropy
-    grad_en_ak = (data['y'] - nn.network['t_label_one_hot'].T) / nn.batch_size
+    bp_data['g_en_ak'] = (data['y'] - nn.network['t_label_one_hot'].T) / nn.batch_size
 
     # 2. find grad(E_n, X), grad(E_n, W2), grad(E_n, b2)
-    grad_en_x2 = np.dot(nn.network['w2'].T, grad_en_ak)
-    grad_en_w2 = np.dot(grad_en_ak, data['z1'].T)
-    grad_en_b2 = grad_en_ak.sum(axis=1)
-    grad_en_b2 = grad_en_b2.reshape((nn.c, 1))
+    bp_data['g_en_x2'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak'])
+    bp_data['g_en_w2'] = np.dot(bp_data['g_en_ak'], data['z1'].T)
+    grad_en_b2 = bp_data['g_en_ak'].sum(axis=1)
+    bp_data['g_en_b2'] = grad_en_b2.reshape((nn.c, 1))
 
-    # 3. back propagate : sigmoid
+    # 3. back propagate : activate layer
     # sigmoid function ver.
-    # bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+    # bp_activate = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
 
     # relu function ver.
-    bp_sigmoid = np.dot(nn.network['w2'].T, grad_en_ak) * relu_backward(data['a1'])
+    bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
 
     # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
-    grad_en_x1 = np.dot(nn.network['w1'].T, bp_sigmoid)
-    grad_en_w1 = np.dot(bp_sigmoid, data['x1'].T)
-    grad_en_b1 = bp_sigmoid.sum(axis=1)
-    grad_en_b1 = grad_en_b1.reshape((nn.m, 1))
+    bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+    bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+    grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
+    bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     # 5. update parameter
-    nn.network['w1'] -= nn.eta * grad_en_w1
-    nn.network['w2'] -= nn.eta * grad_en_w2
-    nn.network['b1'] -= nn.eta * grad_en_b1
-    nn.network['b2'] -= nn.eta * grad_en_b2
+    # sgd(nn, bp_data)
+    # momentum_sgd(nn, bp_data)
+    adagrad(nn, bp_data)
+    """
+    nn.network['w1'] -= nn.eta * bp_data['g_en_w1']
+    nn.network['w2'] -= nn.eta * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+    """
 
 
 def main():

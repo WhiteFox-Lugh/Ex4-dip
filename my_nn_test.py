@@ -53,6 +53,19 @@ def f_sigmoid(t: ndarray) -> ndarray:
     return 1.0 / (1.0 + np.exp(-t))
 
 
+def relu_forward(t: ndarray) -> ndarray:
+    """ Apply ReLU function.
+
+    Args:
+        t: The input value of this function.
+
+    Returns:
+        The output of ReLU function.
+    """
+
+    return np.maximum(t, 0)
+
+
 def f_softmax(t: ndarray) -> ndarray:
     """ Apply softmax function.
 
@@ -109,7 +122,8 @@ def mid_layer_activation(t: ndarray) -> ndarray:
         The array applied activation function.
         The shape of array is (m, 1).
     """
-    return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
 def output_layer_apply(t: ndarray) -> ndarray:
@@ -221,7 +235,7 @@ def main():
     print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
     plt.show()
 
-    """
+    #"""
     correct = 0
     incorrect = 0
     for idx in range(10000):
@@ -231,7 +245,7 @@ def main():
             correct = correct + 1
         else :
             incorrect = incorrect + 1
-            print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
+            # print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
 
     accuracy = correct / (correct + incorrect)
     print("accuracy -> {0}".format(accuracy))
@@ -240,7 +254,7 @@ def main():
     plt.imshow(nn.X[idx], cmap=cm.gray)
     #print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
     plt.show()
-    """
+    #"""
 
 
 if __name__ == "__main__":

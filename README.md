@@ -23,8 +23,8 @@
 - [ ] Batch Normalization
 - [ ] 最適化手法の改良
 
-    - [ ] Momentum SGD
-    - [ ] AdaGrad
+    - [x] Momentum SGD
+    - [x] AdaGrad
     - [ ] RMSProp
     - [ ] AdaDelta
     - [ ] Adam

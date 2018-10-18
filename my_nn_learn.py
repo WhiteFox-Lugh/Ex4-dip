@@ -45,6 +45,23 @@ class NNLearn:
     bp_param['rmsprop_h2'] = 0
     bp_param['rmsprop_rho'] = 0.9
     bp_param['rmsprop_epsilon'] = 10 ** (-8)
+    # --- for AdaDelta ---
+    bp_param['adadelta_h1'] = 0
+    bp_param['adadelta_h2'] = 0
+    bp_param['adadelta_s1'] = 0
+    bp_param['adadelta_s2'] = 0
+    bp_param['adadelta_rho'] = 0.95
+    bp_param['adadelta_epsilon'] = 10 ** (-6)
+    # --- for Adam ---
+    bp_param['adam_t'] = 0
+    bp_param['adam_m1'] = 0
+    bp_param['adam_m2'] = 0
+    bp_param['adam_v1'] = 0
+    bp_param['adam_v2'] = 0
+    bp_param['adam_beta1'] = 0.9
+    bp_param['adam_beta2'] = 0.999
+    bp_param['adam_epsilon'] = 10 ** (-8)
+    bp_param['adam_alpha'] = 10 ** (-3)
 
     def __init__(self):
         self.network = {}
@@ -263,14 +280,70 @@ def rms_prop(nn: NNLearn, bp_data: dict):
         bp_data: date of back propagation
 
     """
-    nn.bp_param['rmsprop_h1'] = nn.bp_param['rmsprop_rho'] * nn.bp_param['rmsprop_h1'] +\
-                           (1 - nn.bp_param['rmsprop_rho']) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
-    nn.bp_param['rmsprop_h2'] = nn.bp_param['rmsprop_rho'] * nn.bp_param['rmsprop_h2'] +\
-                           (1 - nn.bp_param['rmsprop_rho']) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
-    nn.network['w1'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h1']) + nn.bp_param['rmsprop_epsilon']))\
-                        * bp_data['g_en_w1']
-    nn.network['w2'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h2']) + nn.bp_param['rmsprop_epsilon']))\
-                        * bp_data['g_en_w2']
+
+    rho = nn.bp_param['rmsprop_rho']
+    epsilon = nn.bp_param['rmsprop_epsilon']
+    nn.bp_param['rmsprop_h1'] = rho * nn.bp_param['rmsprop_h1'] +\
+                                (1 - rho) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['rmsprop_h2'] = rho * nn.bp_param['rmsprop_h2'] +\
+                                (1 - rho) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.network['w1'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h1']) + epsilon)) * bp_data['g_en_w1']
+    nn.network['w2'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h2']) + epsilon)) * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
+def ada_delta(nn: NNLearn, bp_data: dict):
+    """ Applying AdaDelta
+
+    Args:
+        nn: Class NNLearn
+        bp_data: date of back propagation
+
+    """
+
+    rho = nn.bp_param['adadelta_rho']
+    nn.bp_param['adadelta_h1'] = rho * nn.bp_param['adadelta_h1'] +\
+                           (1 - rho) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['adadelta_h2'] = rho * nn.bp_param['adadelta_h2'] +\
+                           (1 - rho) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.bp_param['adadelta_dw1'] = ((-np.sqrt(nn.bp_param['adadelta_s1'] + nn.bp_param['adadelta_epsilon']))
+                                   / np.sqrt(nn.bp_param['adadelta_h1'] + nn.bp_param['adadelta_epsilon']))\
+                                  * bp_data['g_en_w1']
+    nn.bp_param['adadelta_dw2'] = ((-np.sqrt(nn.bp_param['adadelta_s2'] + nn.bp_param['adadelta_epsilon']))
+                                   / np.sqrt(nn.bp_param['adadelta_h2'] + nn.bp_param['adadelta_epsilon']))\
+                                  * bp_data['g_en_w2']
+    nn.bp_param['adadelta_s1'] = rho * nn.bp_param['adadelta_s1'] +\
+                           (1 - rho) * (nn.bp_param['adadelta_dw1'] * nn.bp_param['adadelta_dw1'])
+    nn.bp_param['adadelta_s2'] = rho * nn.bp_param['adadelta_s2'] +\
+                           (1 - rho) * (nn.bp_param['adadelta_dw2'] * nn.bp_param['adadelta_dw2'])
+    nn.network['w1'] += nn.bp_param['adadelta_dw1']
+    nn.network['w2'] += nn.bp_param['adadelta_dw2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
+def adam(nn: NNLearn, bp_data: dict):
+    """ Applying Adam
+
+    Args:
+        nn: Class NNLearn
+        bp_data: date of back propagation
+
+    """
+    nn.bp_param['adam_t'] = nn.bp_param['adam_t'] + 1
+    beta1 = nn.bp_param['adam_beta1']
+    beta2 = nn.bp_param['adam_beta2']
+    nn.bp_param['adam_m1'] = beta1 * nn.bp_param['adam_m1'] + (1 - beta1) * bp_data['g_en_w1']
+    nn.bp_param['adam_m2'] = beta1 * nn.bp_param['adam_m2'] + (1 - beta1) * bp_data['g_en_w2']
+    nn.bp_param['adam_v1'] = beta2 * nn.bp_param['adam_v1'] + (1 - beta2) * bp_data['g_en_w1'] * bp_data['g_en_w1']
+    nn.bp_param['adam_v2'] = beta2 * nn.bp_param['adam_v2'] + (1 - beta2) * bp_data['g_en_w2'] * bp_data['g_en_w2']
+    m_hat1 = nn.bp_param['adam_m1'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    m_hat2 = nn.bp_param['adam_m2'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    v_hat1 = nn.bp_param['adam_v1'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    v_hat2 = nn.bp_param['adam_v2'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    nn.network['w1'] -= (nn.bp_param['adam_alpha'] * m_hat1) / (np.sqrt(v_hat1) + nn.bp_param['adam_epsilon'])
+    nn.network['w2'] -= (nn.bp_param['adam_alpha'] * m_hat2) / (np.sqrt(v_hat2) + nn.bp_param['adam_epsilon'])
     nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
@@ -348,7 +421,9 @@ def back_prop(nn: NNLearn, data: dict):
     # sgd(nn, bp_data)
     # momentum_sgd(nn, bp_data)
     # adagrad(nn, bp_data)
-    rms_prop(nn, bp_data)
+    # rms_prop(nn, bp_data)
+    # ada_delta(nn, bp_data)
+    adam(nn, bp_data)
 
     """
     nn.network['w1'] -= nn.eta * bp_data['g_en_w1']

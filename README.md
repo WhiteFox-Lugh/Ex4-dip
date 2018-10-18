@@ -21,13 +21,13 @@
 - [x] ReLU
 - [ ] Dropout
 - [ ] Batch Normalization
-- [ ] 最適化手法の改良
+- [x] 最適化手法の改良
 
     - [x] Momentum SGD
     - [x] AdaGrad
-    - [ ] RMSProp
-    - [ ] AdaDelta
-    - [ ] Adam
+    - [x] RMSProp
+    - [x] AdaDelta
+    - [x] Adam
 
 - [ ] カラー画像への拡張
 - [ ] 畳み込み層

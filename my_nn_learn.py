@@ -40,6 +40,11 @@ class NNLearn:
     bp_param['ag_h1'] = 10 ** (-8)
     bp_param['ag_h2'] = 10 ** (-8)
     bp_param['lr'] = 0.001
+    # --- for RMSProp ---
+    bp_param['rmsprop_h1'] = 0
+    bp_param['rmsprop_h2'] = 0
+    bp_param['rmsprop_rho'] = 0.9
+    bp_param['rmsprop_epsilon'] = 10 ** (-8)
 
     def __init__(self):
         self.network = {}
@@ -238,16 +243,34 @@ def adagrad(nn: NNLearn, bp_data: dict):
     """ Applying AdaGrad
 
     Args:
-        nn:
-        bp_data:
-
-    Returns:
+        nn: Class NNLearn
+        bp_data: date of back propagation
 
     """
     nn.bp_param['ag_h1'] = nn.bp_param['ag_h1'] + (bp_data['g_en_w1'] * bp_data['g_en_w1'])
     nn.bp_param['ag_h2'] = nn.bp_param['ag_h2'] + (bp_data['g_en_w2'] * bp_data['g_en_w2'])
     nn.network['w1'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h1'])) * bp_data['g_en_w1']
     nn.network['w2'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h2'])) * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
+def rms_prop(nn: NNLearn, bp_data: dict):
+    """ Applying RMSProp
+
+    Args:
+        nn: Class NNLearn
+        bp_data: date of back propagation
+
+    """
+    nn.bp_param['rmsprop_h1'] = nn.bp_param['rmsprop_rho'] * nn.bp_param['rmsprop_h1'] +\
+                           (1 - nn.bp_param['rmsprop_rho']) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['rmsprop_h2'] = nn.bp_param['rmsprop_rho'] * nn.bp_param['rmsprop_h2'] +\
+                           (1 - nn.bp_param['rmsprop_rho']) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.network['w1'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h1']) + nn.bp_param['rmsprop_epsilon']))\
+                        * bp_data['g_en_w1']
+    nn.network['w2'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h2']) + nn.bp_param['rmsprop_epsilon']))\
+                        * bp_data['g_en_w2']
     nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
@@ -324,7 +347,9 @@ def back_prop(nn: NNLearn, data: dict):
     # 5. update parameter
     # sgd(nn, bp_data)
     # momentum_sgd(nn, bp_data)
-    adagrad(nn, bp_data)
+    # adagrad(nn, bp_data)
+    rms_prop(nn, bp_data)
+
     """
     nn.network['w1'] -= nn.eta * bp_data['g_en_w1']
     nn.network['w2'] -= nn.eta * bp_data['g_en_w2']

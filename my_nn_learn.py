@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from pylab import cm
 from progressbar import ProgressBar
 
-mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
+#mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
+mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
 p = ProgressBar()
 
 

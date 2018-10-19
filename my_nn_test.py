@@ -42,7 +42,7 @@ class NNTest:
 
 
 class Dropout:
-    rho = 0.3
+    rho = 0.2
 
     def __init__(self, nn: NNTest):
         self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
@@ -57,7 +57,7 @@ class Dropout:
 
     def forward(self, nn: NNTest, t: ndarray) -> ndarray:
         self.mask = self.gen_mask(nn)
-        return t * self.mask
+        return (1 - self.rho) * t * self.mask
 
     def backward(self) -> ndarray:
         return self.mask

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from pylab import cm
 from progressbar import ProgressBar
 
-mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
-#mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
+#mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
+mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
 p = ProgressBar()
 
 
@@ -77,7 +77,7 @@ class NNLearn:
 
 
 class Dropout:
-    rho = 0.3
+    rho = 0.2
 
     def __init__(self, nn: NNLearn):
         self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
@@ -387,11 +387,14 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # input_layer : (1, batch_size * d) -> (d = 784, batch_size)
     output_input_layer = input_layer(nn, input_img)
+
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
     # z_mid_layer = mid_layer_activation(a_mid_layer)
+
     data_forward['dropout_class'] = Dropout(nn)
     z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
     result = output_layer_apply(a_output_layer)

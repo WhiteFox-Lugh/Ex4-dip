@@ -19,7 +19,7 @@
 
 - [ ] 手書き数字画像認識コンテスト
 - [x] ReLU
-- [ ] Dropout
+- [x] Dropout
 - [ ] Batch Normalization
 - [x] 最適化手法の改良
 

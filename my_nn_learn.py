@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from pylab import cm
 from progressbar import ProgressBar
 
-#mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
-mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
+mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
+#mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
 p = ProgressBar()
 
 
@@ -74,6 +74,28 @@ class NNLearn:
         self.network['b1'] = b1_tmp.reshape((self.m, 1))
         b2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c)
         self.network['b2'] = b2_tmp.reshape((self.c, 1))
+
+
+class Dropout:
+    rho = 0.3
+
+    def __init__(self, nn: NNLearn):
+        self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
+        self.mask = np.zeros((nn.m, nn.batch_size))
+
+    def gen_mask(self, nn: NNLearn) -> ndarray:
+        tmp1 = np.identity(nn.batch_size)[self.dropout_num]
+        tmp2 = np.sum(tmp1, axis=0)
+        tmp3 = np.repeat(tmp2, nn.m)
+        tmp4 = tmp3.reshape(nn.batch_size, nn.m)
+        return 1 - tmp4.T
+
+    def forward(self, nn: NNLearn, t: ndarray) -> ndarray:
+        self.mask = self.gen_mask(nn)
+        return t * self.mask
+
+    def backward(self) -> ndarray:
+        return self.mask
 
 
 def f_sigmoid(t: ndarray) -> ndarray:
@@ -367,7 +389,9 @@ def forward(nn: NNLearn, input_img: ndarray):
     output_input_layer = input_layer(nn, input_img)
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    z_mid_layer = mid_layer_activation(a_mid_layer)
+    # z_mid_layer = mid_layer_activation(a_mid_layer)
+    data_forward['dropout_class'] = Dropout(nn)
+    z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
     result = output_layer_apply(a_output_layer)
@@ -408,9 +432,11 @@ def back_prop(nn: NNLearn, data: dict):
     # 3. back propagate : activate layer
     # sigmoid function ver.
     # bp_activate = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
-
     # relu function ver.
-    bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+    # bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+    # dropout ver.
+    bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
+                                * data['dropout_class'].backward()
 
     # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
     bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])

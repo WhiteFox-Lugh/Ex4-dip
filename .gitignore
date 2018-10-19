@@ -1,6 +1,5 @@
 .idea/
 *ubyte
-*.npz
 *.png
 submit*/
 .vscode

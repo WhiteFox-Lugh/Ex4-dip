@@ -9,3 +9,8 @@ submit*/
 *.dvi
 *.log
 *.js
+*.tar.gz
+*.meta
+*_batch*
+*.html
+report_template*

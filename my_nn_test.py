@@ -146,7 +146,7 @@ def mid_layer_activation(t: ndarray) -> ndarray:
         The shape of array is (m, 1).
     """
     # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    # return np.apply_along_axis(relu_forward, axis=0, arr=t)
+    return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
 def output_layer_apply(t: ndarray) -> ndarray:
@@ -180,9 +180,9 @@ def forward(nn: NNTest, idx: int):
     output_input_layer = input_layer(nn.X[idx], nn)
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    # z_mid_layer = mid_layer_activation(a_mid_layer)
-    data_forward['dropout_class'] = Dropout(nn)
-    z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+    z_mid_layer = mid_layer_activation(a_mid_layer)
+    # data_forward['dropout_class'] = Dropout(nn)
+    # z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
     result = output_layer_apply(a_output_layer)

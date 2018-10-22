@@ -28,19 +28,19 @@ class NNcolorlearn:
     with open(f, 'rb') as fo:
         dict = cPickle.load(fo)
     data_x = np.array(dict['data'])
-    data_x = data_x.reshape((data_x.shape[0],3,32,32))
+    data_x = data_x.reshape((data_x.shape[0], 3, 32, 32))
     data_y = np.array(dict['labels'])
     bp_param = {}
 
     def __init__(self):
         self.network = {}
-        w1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m * self.d)
+        w1_tmp = np.random.normal(0.0, math.sqrt(1.0 / self.d), self.m * self.d)
         self.network['w1'] = w1_tmp.reshape((self.m, self.d))
-        w2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c * self.m)
+        w2_tmp = np.random.normal(0.0, math.sqrt(1.0 / self.m), self.c * self.m)
         self.network['w2'] = w2_tmp.reshape((self.c, self.m))
-        b1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m)
+        b1_tmp = np.random.normal(0.0, math.sqrt(1.0 / self.d), self.m)
         self.network['b1'] = b1_tmp.reshape((self.m, 1))
-        b2_tmp = np.random.normal(0, math.sqrt(1 / self.m), self.c)
+        b2_tmp = np.random.normal(0, math.sqrt(1.0 / self.m), self.c)
         self.network['b2'] = b2_tmp.reshape((self.c, 1))
 
 
@@ -67,7 +67,7 @@ def relu_forward(t):
         The output of ReLU function.
     """
 
-    return np.maximum(t, 0)
+    return np.maximum(t, 0.0)
 
 
 def relu_backward(t):
@@ -80,7 +80,7 @@ def relu_backward(t):
         The output of this function.
 
     """
-    return np.where(t > 0, 1, 0)
+    return np.where(t > 0.0, 1.0, 0.0)
 
 
 def f_softmax(t):
@@ -93,8 +93,8 @@ def f_softmax(t):
         The output of this function.
 
     """
-    alpha = np.max(t)
-    r = np.exp(t - alpha) / np.sum(np.exp(t - alpha))
+    alpha = np.max(t) * 1.0
+    r = (np.exp(t - alpha) * 1.0) / np.sum(np.exp(t - alpha))
     return r
 
 
@@ -110,8 +110,8 @@ def input_layer(nn, x):
         The shape of array is (d, 1).
 
     """
-    tmp = x.reshape(nn.batch_size, nn.d)
-    return tmp.T / nn.img_div
+    tmp = x.reshape((nn.batch_size, nn.d))
+    return (tmp.T * 1.0) / nn.img_div
 
 
 def affine_transformation(w, x, b):
@@ -126,7 +126,7 @@ def affine_transformation(w, x, b):
         The array applied affine transformation function.
 
     """
-    return np.dot(w, x) + b
+    return np.dot(w * 1.0, x) + b
 
 
 def mid_layer_activation(t):
@@ -186,9 +186,9 @@ def cal_cross_entropy(nn, prob, label):
     e = np.array([], dtype="float32")
     y_p = prob.T
     for j in range(nn.batch_size):
-        tmp_e = 0
+        tmp_e = 0.0
         for k in range(nn.c):
-            tmp_e += (-label[j][k] * np.log(y_p[j][k]))
+            tmp_e += (-label[j][k] * np.log(y_p[j][k])) * 1.0
         e = np.append(e, tmp_e)
     return e
 

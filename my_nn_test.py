@@ -268,7 +268,7 @@ def main():
         y = np.argmax(forward_data['y'], axis=0)
         if int(nn.Y[idx]) == int(y):
             correct = correct + 1
-        else :
+        else:
             incorrect = incorrect + 1
             # print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
 

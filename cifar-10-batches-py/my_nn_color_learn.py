@@ -22,7 +22,7 @@ class NNcolorlearn:
     m = 1000
     batch_size = 100
     per_epoch = 10000 // batch_size
-    epoch = 50
+    epoch = 100
     p = ProgressBar()
     f = "./data_batch_1"
     with open(f, 'rb') as fo:
@@ -31,6 +31,16 @@ class NNcolorlearn:
     data_x = data_x.reshape((data_x.shape[0], 3, 32, 32))
     data_y = np.array(dict['labels'])
     bp_param = {}
+    # --- for Adam ---
+    bp_param['adam_t'] = 0.0
+    bp_param['adam_m1'] = 0.0
+    bp_param['adam_m2'] = 0.0
+    bp_param['adam_v1'] = 0.0
+    bp_param['adam_v2'] = 0.0
+    bp_param['adam_beta1'] = 0.9
+    bp_param['adam_beta2'] = 0.999
+    bp_param['adam_epsilon'] = 10.0 ** (-8)
+    bp_param['adam_alpha'] = 0.001
 
     def __init__(self):
         self.network = {}
@@ -193,6 +203,31 @@ def cal_cross_entropy(nn, prob, label):
     return e
 
 
+def adam(nn, bp_data):
+    """ Applying Adam
+
+    Args:
+        nn: Class NNLearn
+        bp_data: date of back propagation
+
+    """
+    nn.bp_param['adam_t'] = nn.bp_param['adam_t'] + 1
+    beta1 = nn.bp_param['adam_beta1']
+    beta2 = nn.bp_param['adam_beta2']
+    nn.bp_param['adam_m1'] = beta1 * nn.bp_param['adam_m1'] + (1 - beta1) * bp_data['g_en_w1']
+    nn.bp_param['adam_m2'] = beta1 * nn.bp_param['adam_m2'] + (1 - beta1) * bp_data['g_en_w2']
+    nn.bp_param['adam_v1'] = beta2 * nn.bp_param['adam_v1'] + (1 - beta2) * bp_data['g_en_w1'] * bp_data['g_en_w1']
+    nn.bp_param['adam_v2'] = beta2 * nn.bp_param['adam_v2'] + (1 - beta2) * bp_data['g_en_w2'] * bp_data['g_en_w2']
+    m_hat1 = nn.bp_param['adam_m1'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    m_hat2 = nn.bp_param['adam_m2'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    v_hat1 = nn.bp_param['adam_v1'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    v_hat2 = nn.bp_param['adam_v2'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    nn.network['w1'] -= (nn.bp_param['adam_alpha'] * m_hat1) / (np.sqrt(v_hat1) + nn.bp_param['adam_epsilon'])
+    nn.network['w2'] -= (nn.bp_param['adam_alpha'] * m_hat2) / (np.sqrt(v_hat2) + nn.bp_param['adam_epsilon'])
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+
+
 def forward(nn, input_img):
     """ Forwarding
 
@@ -271,12 +306,14 @@ def back_prop(nn, data):
     # adagrad(nn, bp_data)
     # rms_prop(nn, bp_data)
     # ada_delta(nn, bp_data)
-    # adam(nn, bp_data)
+    adam(nn, bp_data)
 
+    """
     nn.network['w1'] -= nn.eta * bp_data['g_en_w1']
     nn.network['w2'] -= nn.eta * bp_data['g_en_w2']
     nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+    """
 
 
 def main():
@@ -309,17 +346,22 @@ def main():
         forward_data = forward(nn, input_img)
 
         # print cross entropy
-        print("average cross entropy -> {0}".format(forward_data['avg_entropy']))
+        # print("average cross entropy -> {0}".format(forward_data['avg_entropy']))
 
         # back propagation
         back_prop(nn, forward_data)
 
-        iteration = np.append(iteration, itr + 1)
-        loss = np.append(loss, forward_data['avg_entropy'])
+        # entropy plot
+        # iteration = np.append(iteration, itr + 1)
+        # loss = np.append(loss, forward_data['avg_entropy'])
 
         if itr % nn.per_epoch == nn.per_epoch - 1:
+            iteration = np.append(iteration, (itr // nn.per_epoch))
+            loss = np.append(loss, forward_data['avg_entropy'])
             plt.plot(iteration, loss)
             plt.title("entropy")
+            plt.xlim([0, 100])
+            plt.ylim([-0.1, 2.20])
             plt.xlabel("itr")
             plt.ylabel("entropy")
             plt.show()

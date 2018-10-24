@@ -22,6 +22,7 @@ class NNTest:
     c = 10
     m = 200
     batch_size = 1
+    filename = ""
     X, Y = mndata.load_testing()
     X = np.array(X)
     X = X.reshape((X.shape[0], 28, 28))
@@ -208,21 +209,22 @@ def main():
             try:
                 print("パラメータを保存してあるファイル名を入力して下さい.")
                 print("読み込まない場合は何も入力せずに Enter を押してください")
-                filename = str(sys.stdin.readline())
-                filename = filename.replace('\n', '')
-                filename = filename.replace('\r', '')
+                nn.filename = str(sys.stdin.readline())
+                nn.filename = nn.filename.replace("\n", "")
+                nn.filename = nn.filename.replace("\r", "")
+                legend_name = nn.filename.replace("param_", "")
+                legend_name = legend_name.replace(".npz", "")
 
-                if filename == "":
+                if nn.filename == "":
                     print("パラメータをランダムに初期化してテストを行います")
                     mode = 1
                     break
 
-                load_param = np.load(filename)
+                load_param = np.load(nn.filename)
                 mode = 0
 
             except Exception as e:
                 print("エラー: {0}".format(e))
-                err_time = err_time + 1
 
             else:
                 nn.network['w1'] = load_param['w1']
@@ -238,18 +240,17 @@ def main():
                 idx = int(sys.stdin.readline(), 10)
 
                 if 0 <= idx < 10000:
+                    # forwarding
+                    forward_data = forward(nn, idx)
+                    y = np.argmax(forward_data['y'], axis=0)
                     break
+
                 else:
-                    err_time = err_time + 1
                     print("Error: 0以上9999以下の整数ではありません")
 
             except Exception as e:
-                err_time = err_time + 1
                 print(e)
 
-            # forwarding
-            forward_data = forward(nn, idx)
-            y = np.argmax(forward_data['y'], axis=0)
         # --- Exercise 1 ver end ---
 
         # -- for showing images --
@@ -268,30 +269,29 @@ def main():
                     correct = correct + 1
                 else:
                     incorrect = incorrect + 1
-                    # print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
 
             accuracy = correct / (correct + incorrect)
             print("accuracy -> {0}".format(accuracy))
 
             iteration = np.arange(0, 600*30, 1)
             loss = load_param['loss']
-            plt.hold(True)
-            plt.plot(iteration, loss)
-            plt.title("entropy")
+            plt.plot(iteration, loss, label=legend_name)
+            plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
+            plt.title("cross entropy error")
+            plt.grid(True)
             plt.xlabel("itr")
-            plt.ylabel("entropy")
-            plt.show()
+            plt.ylabel("error avg")
 
         try:
             print("続けてテストする場合は1を入力してください. 終了する場合は0を入れてください")
-            err_time = 0
             plot_continue = int(sys.stdin.readline(), 10)
 
-            if plot_continue == 0 or err_time >= 3:
+            if plot_continue == 0:
+                if mode == 0:
+                    plt.show()
                 sys.exit(0)
 
         except Exception as e:
-            err_time = err_time + 1
             print(e)
 
 

@@ -486,12 +486,7 @@ def main():
     iteration = np.array([], dtype='int32')
 
     # mode settings
-    err_time = 0
     while True:
-        if err_time >= 3:
-            print("プログラムを終了します...")
-            sys.exit(0)
-
         try:
             print("中間層の活性化関数(またはDropout)を選択してください")
             print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
@@ -513,7 +508,6 @@ def main():
             break
 
         except Exception as e:
-            err_time = err_time + 1
             print(e)
 
     for itr in p(range(nn.per_epoch * nn.epoch)):

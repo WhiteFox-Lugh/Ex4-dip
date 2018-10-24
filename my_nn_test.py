@@ -201,85 +201,98 @@ def main():
     This is the main function.
     """
 
-    nn = NNTest()
-    err_time = 0
+    # load parameter
     while True:
-        if err_time >= 3:
-            print("プログラムを終了します...")
-            sys.exit(0)
+        nn = NNTest()
+        while True:
+            try:
+                print("パラメータを保存してあるファイル名を入力して下さい.")
+                print("読み込まない場合は何も入力せずに Enter を押してください")
+                filename = str(sys.stdin.readline())
+                filename = filename.replace('\n', '')
+                filename = filename.replace('\r', '')
+
+                if filename == "":
+                    print("パラメータをランダムに初期化してテストを行います")
+                    mode = 1
+                    break
+
+                load_param = np.load(filename)
+                mode = 0
+
+            except Exception as e:
+                print("エラー: {0}".format(e))
+                err_time = err_time + 1
+
+            else:
+                nn.network['w1'] = load_param['w1']
+                nn.network['w2'] = load_param['w2']
+                nn.network['b1'] = load_param['b1']
+                nn.network['b2'] = load_param['b2']
+                break
+
+        # --- Exercise 1 ver ---
+        while mode == 1:
+            try:
+                print("0以上9999以下の整数を1つ入力してください.")
+                idx = int(sys.stdin.readline(), 10)
+
+                if 0 <= idx < 10000:
+                    break
+                else:
+                    err_time = err_time + 1
+                    print("Error: 0以上9999以下の整数ではありません")
+
+            except Exception as e:
+                err_time = err_time + 1
+                print(e)
+
+            # forwarding
+            forward_data = forward(nn, idx)
+            y = np.argmax(forward_data['y'], axis=0)
+        # --- Exercise 1 ver end ---
+
+        # -- for showing images --
+        if mode == 1:
+            plt.imshow(nn.X[idx], cmap=cm.gray)
+            print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
+            plt.show()
+
+        else:
+            correct = 0
+            incorrect = 0
+            for idx in range(10000):
+                forward_data = forward(nn, idx)
+                y = np.argmax(forward_data['y'], axis=0)
+                if int(nn.Y[idx]) == int(y):
+                    correct = correct + 1
+                else:
+                    incorrect = incorrect + 1
+                    # print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
+
+            accuracy = correct / (correct + incorrect)
+            print("accuracy -> {0}".format(accuracy))
+
+            iteration = np.arange(0, 600*30, 1)
+            loss = load_param['loss']
+            plt.hold(True)
+            plt.plot(iteration, loss)
+            plt.title("entropy")
+            plt.xlabel("itr")
+            plt.ylabel("entropy")
+            plt.show()
 
         try:
-            print("0以上9999以下の整数を1つ入力してください.")
-            idx = int(sys.stdin.readline(), 10)
+            print("続けてテストする場合は1を入力してください. 終了する場合は0を入れてください")
+            err_time = 0
+            plot_continue = int(sys.stdin.readline(), 10)
 
-            if 0 <= idx < 10000:
-                break
-            else:
-                err_time = err_time + 1
-                print("Error: 0以上9999以下の整数ではありません")
+            if plot_continue == 0 or err_time >= 3:
+                sys.exit(0)
 
         except Exception as e:
             err_time = err_time + 1
             print(e)
-
-    # load parameter
-    err_time = 0
-    while True:
-        try:
-            if err_time >= 3:
-                print("プログラムを終了します...")
-                sys.exit(0)
-
-            print("パラメータを保存してあるファイル名を入力して下さい.")
-            print("読み込まない場合は何も入力せずに Enter を押してください")
-            filename = str(sys.stdin.readline())
-            filename = filename.replace('\n', '')
-            filename = filename.replace('\r', '')
-            if filename == "":
-                print("パラメータをランダムに初期化してテストを行います")
-                break
-            load_param = np.load(filename)
-
-        except Exception as e:
-            print("エラー: {0}".format(e))
-            err_time = err_time + 1
-
-        else:
-            nn.network['w1'] = load_param['w1']
-            nn.network['w2'] = load_param['w2']
-            nn.network['b1'] = load_param['b1']
-            nn.network['b2'] = load_param['b2']
-            break
-
-    # forwarding
-    forward_data = forward(nn, idx)
-    y = np.argmax(forward_data['y'], axis=0)
-
-    # -- for showing images --
-    plt.imshow(nn.X[idx], cmap=cm.gray)
-    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
-    plt.show()
-
-    #"""
-    correct = 0
-    incorrect = 0
-    for idx in range(10000):
-        forward_data = forward(nn, idx)
-        y = np.argmax(forward_data['y'], axis=0)
-        if int(nn.Y[idx]) == int(y):
-            correct = correct + 1
-        else:
-            incorrect = incorrect + 1
-            # print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.Y[idx]))
-
-    accuracy = correct / (correct + incorrect)
-    print("accuracy -> {0}".format(accuracy))
-
-    # -- for showing images --
-    plt.imshow(nn.X[idx], cmap=cm.gray)
-    #print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
-    plt.show()
-    #"""
 
 
 if __name__ == "__main__":

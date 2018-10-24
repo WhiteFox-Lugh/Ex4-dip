@@ -6,27 +6,58 @@
 \usepackage{amsfonts}
 \usepackage{comment}
 \usepackage{here}
-%\usepackage{listings}
 \usepackage{listings,jlisting}
-%\begin{comment}
-\lstset{%
-  language={C},
-  basicstyle={\small},%
-  identifierstyle={\small},%
-  commentstyle={\small\itshape},%
-  keywordstyle={\small\bfseries},%
-  ndkeywordstyle={\small},%
-  stringstyle={\small\ttfamily},
-  frame={tb},
-  breaklines=true,
-  columns=[l]{fullflexible},%
-  numbers=left,%
-  xrightmargin=0zw,%
-  xleftmargin=3zw,%
-  numberstyle={\scriptsize},%
-  stepnumber=1,
-  numbersep=1zw,%
-  lineskip=-0.5ex%
+\usepackage[a4paper,margin=2cm,truedimen]{geometry}
+\usepackage{amssymb}
+\usepackage[svgnames]{xcolor}
+
+  \definecolor{diffstart}{named}{Grey}
+  \definecolor{diffincl}{named}{Green}
+  \definecolor{diffrem}{named}{OrangeRed}
+
+  \lstdefinelanguage{diff}{
+    basicstyle=\ttfamily\small,
+    morecomment=[f][\color{diffstart}]{@@},
+    morecomment=[f][\color{diffincl}]{+\ },
+    morecomment=[f][\color{diffrem}]{-\ },
+  }
+
+\newcommand{\image}[2]{
+    \begin{figure}[H]
+        \begin{center}
+        \includegraphics[width=14cm]{#2}
+        \end{center}
+        \caption{#1}
+        \label{#1}
+    \end{figure}
+}
+
+\lstset{
+	%language=[Objective]Caml,
+	language=Python,
+    basicstyle=\ttfamily,
+    keywordstyle=\color[RGB]{33,74,135}\bfseries,
+    stringstyle=\color[RGB]{79,153,5},
+    commentstyle=\color[RGB]{143,89,2}\itshape,
+    numberstyle=\footnotesize,
+    numbers=left,
+    stepnumber=1,
+    numbersep=15pt,
+    backgroundcolor=\color[RGB]{251,251,251},
+    frame=single,
+    frameround=ffff,
+    framesep=5pt,
+    rulecolor=\color[RGB]{148,150,152}, 
+    breaklines=true,
+    breakautoindent=true,
+    breakatwhitespace=true,
+    breakindent=25pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    captionpos=b,
+    linewidth=\textwidth,
 }
 %\end{comment}
 \begin{document}
@@ -115,7 +146,7 @@ def relu_backward(t: ndarray) -> ndarray:
 def mid_layer_activation(t: ndarray) -> ndarray:
     # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
     return np.apply_along_axis(relu_forward, axis=0, arr=t)
-    
+
 ...
 
 def back_prop(nn: NNLearn, data: dict):
@@ -147,6 +178,7 @@ def back_prop(nn: NNLearn, data: dict):
 
 \subsection*{A4-1: 最適化手法の改良...Momentum SGD}
 
+
 \subsection*{A4-2: 最適化手法の改良...AdaGrad}
 
 \subsection*{A4-3: 最適化手法の改良...RMSProp}
@@ -155,6 +187,19 @@ def back_prop(nn: NNLearn, data: dict):
 
 \subsection*{A4-5: 最適化手法の改良...Adam}
 
-\subsection*{hogefugapiyo}
+\subsection*{A5: カラー画像への拡張}
+
+\subsubsection*{実装内容}
+
+新たにカラー画像の学習用のプログラムファイル my\_nn\_color\_learn.py とテスト用プログラムファイル my\_nn\_color\_test.py を用意した。実装内容は以下の通りである。
+
+\begin{itemize}
+	\item モノクロ画像では Python3 系で学習させていたが、cPickle を用いるため Python2 系で実装を行った
+	\item 次元数を $ d=1 \times 28 \times 28 $ から $ d=3 \times 32 \times 32 $ に変更
+	\item 中間層のノード数を 1000 に変更
+	\item 中間層の活性化関数は ReLU
+	\item 逆伝播後の最適化手法は Adam を採用
+	\item Adam のパラメータは $\alpha = 0.001, \beta_1 = 0.9, \beta_2 =  0.999, \epsilon = 10^{-8}$ に設定
+\end{itemize}
 
 \end{document}

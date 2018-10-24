@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from pylab import cm
 from progressbar import ProgressBar
 
-#mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
-mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
+mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
+# mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
 p = ProgressBar()
 
 
@@ -26,12 +26,13 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 50
+    epoch = 30
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)
     X = X.reshape((X.shape[0], 28, 28))
     Y = np.array(Y)
+    mode = {}
     # --- for Momentum SGD ---
     alpha = 0.9
     bp_param = {}
@@ -183,10 +184,11 @@ def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
     return np.dot(w, x) + b
 
 
-def mid_layer_activation(t: ndarray) -> ndarray:
+def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
     """ Apply activation function in hidden layer.
 
     Args:
+        mode: decide which activation function is used.
         t: input from previous affine layer.
 
     Returns:
@@ -194,8 +196,10 @@ def mid_layer_activation(t: ndarray) -> ndarray:
         The shape of array is (m, 1).
     """
 
-    # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    return np.apply_along_axis(relu_forward, axis=0, arr=t)
+    if mode == 0:
+        return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    elif mode == 1:
+        return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
 def output_layer_apply(t: ndarray) -> ndarray:
@@ -390,10 +394,13 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    # z_mid_layer = mid_layer_activation(a_mid_layer)
 
-    data_forward['dropout_class'] = Dropout(nn)
-    z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+    if nn.mode['mid_act_fun'] != 2:
+        z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_layer)
+
+    else:
+        data_forward['dropout_class'] = Dropout(nn)
+        z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
 
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
@@ -433,13 +440,18 @@ def back_prop(nn: NNLearn, data: dict):
     bp_data['g_en_b2'] = grad_en_b2.reshape((nn.c, 1))
 
     # 3. back propagate : activate layer
-    # sigmoid function ver.
-    # bp_activate = np.dot(nn.network['w2'].T, grad_en_ak) * (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
-    # relu function ver.
-    # bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
-    # dropout ver.
-    bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
-                                * data['dropout_class'].backward()
+    if nn.mode['mid_act_fun'] == 0:
+        # sigmoid function ver.
+        bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) *\
+                      (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+    elif nn.mode['mid_act_fun'] == 1:
+        # relu function ver.
+        bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+
+    elif nn.mode['mid_act_fun'] == 2:
+        # dropout ver.
+        bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
+                                    * data['dropout_class'].backward()
 
     # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
     bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
@@ -448,19 +460,18 @@ def back_prop(nn: NNLearn, data: dict):
     bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     # 5. update parameter
-    # sgd(nn, bp_data)
-    # momentum_sgd(nn, bp_data)
-    # adagrad(nn, bp_data)
-    # rms_prop(nn, bp_data)
-    # ada_delta(nn, bp_data)
-    adam(nn, bp_data)
-
-    """
-    nn.network['w1'] -= nn.eta * bp_data['g_en_w1']
-    nn.network['w2'] -= nn.eta * bp_data['g_en_w2']
-    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
-    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
-    """
+    if nn.mode['param_update'] == 0:
+        sgd(nn, bp_data)
+    elif nn.mode['param_update'] == 1:
+        momentum_sgd(nn, bp_data)
+    elif nn.mode['param_update'] == 2:
+        adagrad(nn, bp_data)
+    elif nn.mode['param_update'] == 3:
+        rms_prop(nn, bp_data)
+    elif nn.mode['param_update'] == 4:
+        ada_delta(nn, bp_data)
+    elif nn.mode['param_update'] == 5:
+        adam(nn, bp_data)
 
 
 def main():
@@ -473,6 +484,37 @@ def main():
 
     loss = np.array([])
     iteration = np.array([], dtype='int32')
+
+    # mode settings
+    err_time = 0
+    while True:
+        if err_time >= 3:
+            print("プログラムを終了します...")
+            sys.exit(0)
+
+        try:
+            print("中間層の活性化関数(またはDropout)を選択してください")
+            print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
+            tmp = int(sys.stdin.readline(), 10)
+            if 0 <= tmp <= 2:
+                nn.mode['mid_act_fun'] = tmp
+            else:
+                raise Exception("Error: 無効な入力です")
+
+            print("最適化手法を選択してください")
+            print("0 -> SGD, 1 -> Momentum SGD, 2 -> AdaGrad,")
+            print("3 -> RMSProp, 4 -> AdaDelta, 5 -> Adam")
+            tmp = int(sys.stdin.readline(), 10)
+            if 0 <= tmp <= 5:
+                nn.mode['param_update'] = tmp
+            else:
+                raise Exception("Error: 無効な入力です")
+
+            break
+
+        except Exception as e:
+            err_time = err_time + 1
+            print(e)
 
     for itr in p(range(nn.per_epoch * nn.epoch)):
         # init

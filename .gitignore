@@ -13,3 +13,4 @@ submit*/
 *_batch*
 *.html
 report_template*
+cifar-10-batches-py/venv

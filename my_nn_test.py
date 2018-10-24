@@ -6,8 +6,7 @@ from mnist import MNIST
 import matplotlib.pyplot as plt
 from pylab import cm
 
-mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
-#mndata = MNIST("/export/home/016/a0167009/le4-dip/Ex4-dip")
+mndata = MNIST("./")
 
 
 class NNTest:
@@ -275,7 +274,7 @@ def main():
 
             iteration = np.arange(0, 600*30, 1)
             loss = load_param['loss']
-            plt.plot(iteration, loss, label=legend_name)
+            plt.plot(iteration, loss, label=legend_name, lw=0.5)
             plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
             plt.title("cross entropy error")
             plt.grid(True)

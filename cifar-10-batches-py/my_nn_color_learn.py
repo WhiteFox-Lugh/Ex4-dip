@@ -22,7 +22,7 @@ class NNcolorlearn:
     m = 1000
     batch_size = 100
     per_epoch = 10000 // batch_size
-    epoch = 100
+    epoch = 150
     p = ProgressBar()
     f = "./data_batch_1"
     with open(f, 'rb') as fo:
@@ -360,7 +360,7 @@ def main():
             loss = np.append(loss, forward_data['avg_entropy'])
             plt.plot(iteration, loss)
             plt.title("entropy")
-            plt.xlim([0, 100])
+            plt.xlim([0, 150])
             plt.ylim([-0.1, 2.20])
             plt.xlabel("itr")
             plt.ylabel("entropy")

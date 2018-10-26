@@ -99,6 +99,48 @@ class Dropout:
         return self.mask
 
 
+class BatchNormalization:
+    gamma = 1
+    beta = 0
+    epsilon = []
+    avg = []
+    var = []
+
+    def __init__(self, nn: NNLearn):
+        self.gamma = 1
+        self.beta = 0
+        self.x_hat = 0
+        self.avg = np.zeros((nn.batch_size, 1))
+        self.var = np.zeros((nn.batch_size, 1))
+        self.epsilon = 10 ** (-8)
+
+    def forward(self, x: ndarray):
+        self.avg = np.apply_along_axis(np.average, axis=1, arr=x)
+        self.var = np.apply_along_axis(np.var, axis=1, arr=x)
+        self.x_hat = np.apply_along_axis(self.f_normalize, axis=0, arr=x)
+        # x_hat_avg = np.average(x_hat)
+        # x_hat_var = np.var(x_hat)
+        return self.gamma * self.x_hat + self.beta
+
+    def f_normalize(self, t: ndarray):
+        return (t - self.avg) / np.sqrt(self.var + self.epsilon)
+
+    def backward(self, y: ndarray, nn: NNLearn, f_data: dict):
+        d_en_xhati = y * self.gamma
+        d_en_var = np.sum(d_en_xhati * np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1) \
+                   / (-2 * (self.var + self.epsilon) ** (3 / 2))
+        d_en_mub = np.sum(d_en_xhati, axis=1) / -np.sqrt(self.var + self.epsilon) + (-2 / nn.batch_size) * \
+                   d_en_var * np.sum(np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1)
+        tmp = np.apply_along_axis(lambda l: 2 * d_en_var * (l - self.avg), axis=0, arr=f_data['a1'])
+        d_en_xi = np.apply_along_axis(lambda l: l / np.sqrt(self.var + self.epsilon), axis=0, arr=d_en_xhati) + \
+                  np.apply_along_axis(lambda l: (l + d_en_mub) / nn.batch_size, axis=0, arr=tmp)
+        d_en_gamma = np.sum(y * self.x_hat, axis=1)
+        d_en_beta = np.sum(y, axis=1)
+        self.gamma -= d_en_gamma
+        self.beta -= d_en_beta
+        return d_en_xi
+
+
 def f_sigmoid(t: ndarray) -> ndarray:
     """ Apply sigmoid function.
 
@@ -394,9 +436,11 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
+    data_forward['batch_n_class'] = BatchNormalization(nn)
+    a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
 
     if nn.mode['mid_act_fun'] != 2:
-        z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_layer)
+        z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_normalize)
 
     else:
         data_forward['dropout_class'] = Dropout(nn)
@@ -444,6 +488,14 @@ def back_prop(nn: NNLearn, data: dict):
         # sigmoid function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) *\
                       (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
+        bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
+
+        # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_batch_norm'], data['x1'].T)
+        grad_en_b1 = bp_data['g_batch_norm'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
+
     elif nn.mode['mid_act_fun'] == 1:
         # relu function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
@@ -453,11 +505,13 @@ def back_prop(nn: NNLearn, data: dict):
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
                                     * data['dropout_class'].backward()
 
+    """
     # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
     bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
     bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
     grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
     bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
+    """
 
     # 5. update parameter
     if nn.mode['param_update'] == 0:

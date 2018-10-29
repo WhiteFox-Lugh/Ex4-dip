@@ -240,7 +240,7 @@ def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
 
     if mode == 0:
         return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    elif mode == 1:
+    else:
         return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
@@ -436,15 +436,21 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    data_forward['batch_n_class'] = BatchNormalization(nn)
-    a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
 
-    if nn.mode['mid_act_fun'] != 2:
+    # apply Batch normalization
+    if nn.mode['mid_act_fun'] == 3:
+        data_forward['batch_n_class'] = BatchNormalization(nn)
+        a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
         z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_normalize)
 
-    else:
+    # apply Dropout
+    elif nn.mode['mid_act_fun'] == 2:
         data_forward['dropout_class'] = Dropout(nn)
         z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+
+    # apply neither Batch normalization nor Dropout
+    else:
+        z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_layer)
 
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
@@ -488,32 +494,34 @@ def back_prop(nn: NNLearn, data: dict):
         # sigmoid function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) *\
                       (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
-        bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
-
-        # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
-        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
-        bp_data['g_en_w1'] = np.dot(bp_data['g_batch_norm'], data['x1'].T)
-        grad_en_b1 = bp_data['g_batch_norm'].sum(axis=1)
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+        grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
         bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     elif nn.mode['mid_act_fun'] == 1:
-        # relu function ver.
+        # ReLU function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+        grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     elif nn.mode['mid_act_fun'] == 2:
         # dropout ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
                                     * data['dropout_class'].backward()
 
-    """
-    # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
-    bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
-    bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
-    grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
-    bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
-    """
+    elif nn.mode['mid_act_fun'] == 3:
+        # ReLU + Batch normalization function ver.
+        bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+        bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_batch_norm'], data['x1'].T)
+        grad_en_b1 = bp_data['g_batch_norm'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
-    # 5. update parameter
+    # 4. update parameter
     if nn.mode['param_update'] == 0:
         sgd(nn, bp_data)
     elif nn.mode['param_update'] == 1:
@@ -544,8 +552,9 @@ def main():
         try:
             print("中間層の活性化関数(またはDropout)を選択してください")
             print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
+            print("3 -> ReLU + Batch Normalization")
             tmp = int(sys.stdin.readline(), 10)
-            if 0 <= tmp <= 2:
+            if 0 <= tmp <= 3:
                 nn.mode['mid_act_fun'] = tmp
             else:
                 raise Exception("Error: 無効な入力です")

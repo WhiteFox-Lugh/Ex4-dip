@@ -5,8 +5,10 @@ import sys
 from mnist import MNIST
 import matplotlib.pyplot as plt
 from pylab import cm
+from progressbar import ProgressBar
 
 mndata = MNIST("./")
+p = ProgressBar()
 
 
 class NNTest:
@@ -20,7 +22,9 @@ class NNTest:
     img_div = 255
     c = 10
     m = 200
-    batch_size = 1
+    batch_size = 100
+    per_epoch = 10000 // batch_size
+    testtime = 100
     filename = ""
     X, Y = mndata.load_testing()
     X = np.array(X)
@@ -104,7 +108,17 @@ def f_softmax(t: ndarray) -> ndarray:
     return r
 
 
-def input_layer(x: ndarray, nn: NNTest) -> ndarray:
+def f_bn_test(nn: NNTest, t: ndarray) -> ndarray:
+    def trans_y(t):
+        return (nn.network['gamma'] / np.sqrt(nn.network['exp_var'] + nn.network['eps'])) * t +\
+               (nn.network['beta'] - (nn.network['gamma'] * nn.network['exp_avg']) /
+                np.sqrt(nn.network['exp_var'] + nn.network['eps']))
+
+    r = np.apply_along_axis(trans_y, axis=0, arr=t)
+    return r
+
+
+def input_layer(nn: NNTest, x: ndarray) -> ndarray:
     """ Input layer of NN.
 
     Args:
@@ -135,18 +149,22 @@ def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
     return np.dot(w, x) + b
 
 
-def mid_layer_activation(t: ndarray) -> ndarray:
+def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
     """ Apply activation function in hidden layer.
 
     Args:
+        mode: decide which activation function is used.
         t: input from previous affine layer.
 
     Returns:
         The array applied activation function.
         The shape of array is (m, 1).
     """
-    # return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    return np.apply_along_axis(relu_forward, axis=0, arr=t)
+
+    if mode == 0:
+        return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
+    else:
+        return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
 def output_layer_apply(t: ndarray) -> ndarray:
@@ -163,26 +181,53 @@ def output_layer_apply(t: ndarray) -> ndarray:
     return np.apply_along_axis(f_softmax, axis=0, arr=t)
 
 
-def forward(nn: NNTest, idx: int):
+def one_hot_vector(t: ndarray, c: int) -> ndarray:
+    """ Make one-hot vector
+
+    Args:
+        t: correct label
+        c: number of class
+
+    Returns:
+        correct label (in one-hot vector expression)
+
+    """
+    return np.identity(c)[t]
+
+
+def forward(nn: NNTest, input_img: ndarray):
     """ Forwarding
 
     Args:
-        nn: Class NNTest
-        idx: input from standard input
+        nn: Class NNLearn
+        input_img: selected images
 
     Returns:
         Dictionary data including the calculation result in each layer.
 
     """
+
     data_forward = {}
 
     # input_layer : (1, batch_size * d) -> (d = 784, batch_size)
-    output_input_layer = input_layer(nn.X[idx], nn)
+    output_input_layer = input_layer(nn, input_img)
+
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    z_mid_layer = mid_layer_activation(a_mid_layer)
-    # data_forward['dropout_class'] = Dropout(nn)
-    # z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+
+    # apply Batch normalization
+    if nn.network['mode'] == 3:
+        a_mid_normalize = f_bn_test(nn, a_mid_layer)
+        z_mid_layer = mid_layer_activation(nn.network['mode'], a_mid_normalize)
+
+    # apply Dropout
+    elif nn.network['mode'] == 2:
+        z_mid_layer = (1 - nn.network['rho']) * a_mid_layer
+
+    # apply neither Batch normalization nor Dropout
+    else:
+        z_mid_layer = mid_layer_activation(nn.network['mode'], a_mid_layer)
+
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
     result = output_layer_apply(a_output_layer)
@@ -201,9 +246,14 @@ def main():
     This is the main function.
     """
 
+    correct = 0
+    incorrect = 0
+    iteration_test = []
+    accuracy_test = []
     # load parameter
     while True:
         nn = NNTest()
+        nums = list(range(0, nn.X.size // nn.d))
         while True:
             try:
                 print("パラメータを保存してあるファイル名を入力して下さい.")
@@ -222,6 +272,24 @@ def main():
                 load_param = np.load(nn.filename)
                 mode = 0
 
+                print("用いる活性化関数を選んでください.")
+                print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
+                print("3 -> ReLU + Batch Normalization")
+                nn.network['mode'] = int(sys.stdin.readline(), 10)
+
+                if not (0 <= nn.network['mode'] <= 3):
+                    raise Exception("不正な入力です")
+
+                elif nn.network['mode'] == 2:
+                    nn.network['rho'] = load_param['rho']
+
+                elif nn.network['mode'] == 3:
+                    nn.network['exp_avg'] = load_param['exp_avg']
+                    nn.network['exp_var'] = load_param['exp_var']
+                    nn.network['beta'] = load_param['beta']
+                    nn.network['gamma'] = load_param['gamma']
+                    nn.network['eps'] = load_param['eps']
+
             except Exception as e:
                 print("エラー: {0}".format(e))
 
@@ -230,6 +298,15 @@ def main():
                 nn.network['w2'] = load_param['w2']
                 nn.network['b1'] = load_param['b1']
                 nn.network['b2'] = load_param['b2']
+                iteration = np.arange(0, 600 * 5, 1)
+                loss = load_param['loss']
+                plt.plot(iteration, loss, label=legend_name, lw=0.5)
+                plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
+                plt.title("cross entropy error")
+                plt.grid(True)
+                plt.xlabel("itr")
+                plt.ylabel("error avg")
+                plt.show()
                 break
 
         # --- Exercise 1 ver ---
@@ -259,27 +336,41 @@ def main():
             plt.show()
 
         else:
-            correct = 0
-            incorrect = 0
-            for idx in range(10000):
-                forward_data = forward(nn, idx)
-                y = np.argmax(forward_data['y'], axis=0)
-                if int(nn.Y[idx]) == int(y):
-                    correct = correct + 1
-                else:
-                    incorrect = incorrect + 1
+            for itr in p(range(nn.per_epoch * nn.testtime)):
+                # init
+                input_img = np.array([], dtype='int32')
+                t_label = np.array([], dtype='int32')
 
-            accuracy = correct / (correct + incorrect)
-            print("accuracy -> {0}".format(accuracy))
+                # select from training data
+                choice_nums = np.random.choice(nums, nn.batch_size, replace=False)
 
-            iteration = np.arange(0, 600*30, 1)
-            loss = load_param['loss']
-            plt.plot(iteration, loss, label=legend_name, lw=0.5)
-            plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
-            plt.title("cross entropy error")
+                # data input
+                for i in range(nn.batch_size):
+                    tmp_img = nn.X[choice_nums[i]]
+                    input_img = np.append(input_img, tmp_img)
+                    t_label = np.append(t_label, nn.Y[choice_nums[i]])
+
+                nn.network['t_label'] = t_label
+                nn.network['t_label_one_hot'] = one_hot_vector(t_label, nn.c)
+
+                # forwarding
+                forward_data = forward(nn, input_img)
+                res = np.argmax(forward_data['y'], axis=0)
+                diff = res - t_label
+                correct += np.sum(diff == 0)
+                incorrect += np.sum(diff != 0)
+                accuracy = correct / (correct + incorrect)
+                iteration_test = np.append(iteration_test, itr + 1)
+                accuracy_test = np.append(accuracy_test, accuracy)
+
+            # --- plot accuracy ---
+            plt.plot(iteration_test, accuracy_test)
+            plt.title("accuracy for testdata")
             plt.grid(True)
             plt.xlabel("itr")
-            plt.ylabel("error avg")
+            plt.ylabel("accuracy")
+            plt.show()
+            print("accuracy -> {0}".format(accuracy))
 
         try:
             print("続けてテストする場合は1を入力してください. 終了する場合は0を入れてください")
@@ -287,6 +378,7 @@ def main():
 
             if plot_continue == 0:
                 if mode == 0:
+                    print("学習時におけるクロスエントロピー誤差の平均値のグラフを出力して終了します")
                     plt.show()
                 sys.exit(0)
 

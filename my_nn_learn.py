@@ -26,7 +26,7 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 30
+    epoch = 5
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)
@@ -105,6 +105,8 @@ class BatchNormalization:
     epsilon = []
     avg = []
     var = []
+    avg_sum = []
+    var_sum = []
 
     def __init__(self, nn: NNLearn):
         self.gamma = 1
@@ -112,21 +114,27 @@ class BatchNormalization:
         self.x_hat = 0
         self.avg = np.zeros((nn.batch_size, 1))
         self.var = np.zeros((nn.batch_size, 1))
+        self.avg_sum = np.zeros(nn.m)
+        self.var_sum = np.zeros(nn.m)
         self.epsilon = 10 ** (-8)
 
     def forward(self, x: ndarray):
         self.avg = np.apply_along_axis(np.average, axis=1, arr=x)
+        self.avg_sum += self.avg
         self.var = np.apply_along_axis(np.var, axis=1, arr=x)
+        self.var_sum += self.var
         self.x_hat = np.apply_along_axis(self.f_normalize, axis=0, arr=x)
-        # x_hat_avg = np.average(x_hat)
-        # x_hat_var = np.var(x_hat)
-        return self.gamma * self.x_hat + self.beta
+        tmp_r = np.apply_along_axis(self.mult_and_move, axis=0, arr=self.x_hat)
+        return tmp_r
 
     def f_normalize(self, t: ndarray):
         return (t - self.avg) / np.sqrt(self.var + self.epsilon)
 
+    def mult_and_move(self, t: ndarray):
+        return self.gamma * t + self.beta
+
     def backward(self, y: ndarray, nn: NNLearn, f_data: dict):
-        d_en_xhati = y * self.gamma
+        d_en_xhati = np.apply_along_axis(lambda l: l * self.gamma, axis=0, arr=y)
         d_en_var = np.sum(d_en_xhati * np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1) \
                    / (-2 * (self.var + self.epsilon) ** (3 / 2))
         d_en_mub = np.sum(d_en_xhati, axis=1) / -np.sqrt(self.var + self.epsilon) + (-2 / nn.batch_size) * \
@@ -439,7 +447,7 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # apply Batch normalization
     if nn.mode['mid_act_fun'] == 3:
-        data_forward['batch_n_class'] = BatchNormalization(nn)
+        data_forward['batch_n_class'] = nn.network['batch_n_class']
         a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
         z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_normalize)
 
@@ -556,6 +564,8 @@ def main():
             tmp = int(sys.stdin.readline(), 10)
             if 0 <= tmp <= 3:
                 nn.mode['mid_act_fun'] = tmp
+                if tmp == 3:
+                    nn.network['batch_n_class'] = BatchNormalization(nn)
             else:
                 raise Exception("Error: 無効な入力です")
 
@@ -594,7 +604,7 @@ def main():
         forward_data = forward(nn, input_img)
 
         # print cross entropy
-        # print("average cross entropy -> {0}".format(forward_data['avg_entropy']))
+        # print("avg -> {0}, var -> {1}".format(nn.network['batch_n_class'].avg_sum, nn.network['batch_n_class'].var_sum))
 
         # back propagation
         back_prop(nn, forward_data)
@@ -614,7 +624,20 @@ def main():
     filename = str(sys.stdin.readline())
     filename = filename.replace('\n', '')
     filename = filename.replace('\r', '')
-    np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
+    if nn.mode['mid_act_fun'] == 3:
+        avg_exp = nn.network['batch_n_class'].avg_sum / (nn.per_epoch * nn.epoch)
+        var_exp = nn.network['batch_n_class'].var_sum / (nn.per_epoch * nn.epoch)
+        bn_beta = nn.network['batch_n_class'].beta
+        bn_gamma = nn.network['batch_n_class'].gamma
+        bn_eps = nn.network['batch_n_class'].epsilon
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
+                 loss=loss, exp_avg=avg_exp, exp_var=var_exp, beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
+
+    elif nn.mode['mid_act_fun'] == 2:
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
+             b2=nn.network['b2'], loss=loss, rho=forward_data['dropout_class'].rho)
+    else:
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
              b2=nn.network['b2'], loss=loss)
 
 

@@ -105,6 +105,8 @@ class BatchNormalization:
     epsilon = []
     avg = []
     var = []
+    avg_sum = []
+    var_sum = []
 
     def __init__(self, nn: NNLearn):
         self.gamma = 1
@@ -112,21 +114,27 @@ class BatchNormalization:
         self.x_hat = 0
         self.avg = np.zeros((nn.batch_size, 1))
         self.var = np.zeros((nn.batch_size, 1))
+        self.avg_sum = np.zeros(nn.m)
+        self.var_sum = np.zeros(nn.m)
         self.epsilon = 10 ** (-8)
 
     def forward(self, x: ndarray):
         self.avg = np.apply_along_axis(np.average, axis=1, arr=x)
+        self.avg_sum += self.avg
         self.var = np.apply_along_axis(np.var, axis=1, arr=x)
+        self.var_sum += self.var
         self.x_hat = np.apply_along_axis(self.f_normalize, axis=0, arr=x)
-        # x_hat_avg = np.average(x_hat)
-        # x_hat_var = np.var(x_hat)
-        return self.gamma * self.x_hat + self.beta
+        tmp_r = np.apply_along_axis(self.mult_and_move, axis=0, arr=self.x_hat)
+        return tmp_r
 
     def f_normalize(self, t: ndarray):
         return (t - self.avg) / np.sqrt(self.var + self.epsilon)
 
+    def mult_and_move(self, t: ndarray):
+        return self.gamma * t + self.beta
+
     def backward(self, y: ndarray, nn: NNLearn, f_data: dict):
-        d_en_xhati = y * self.gamma
+        d_en_xhati = np.apply_along_axis(lambda l: l * self.gamma, axis=0, arr=y)
         d_en_var = np.sum(d_en_xhati * np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1) \
                    / (-2 * (self.var + self.epsilon) ** (3 / 2))
         d_en_mub = np.sum(d_en_xhati, axis=1) / -np.sqrt(self.var + self.epsilon) + (-2 / nn.batch_size) * \
@@ -240,7 +248,7 @@ def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
 
     if mode == 0:
         return np.apply_along_axis(f_sigmoid, axis=0, arr=t)
-    elif mode == 1:
+    else:
         return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
@@ -436,15 +444,21 @@ def forward(nn: NNLearn, input_img: ndarray):
 
     # mid_layer : (d = 784, batch_size) -> (m, batch_size)
     a_mid_layer = affine_transformation(nn.network['w1'], output_input_layer, nn.network['b1'])
-    data_forward['batch_n_class'] = BatchNormalization(nn)
-    a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
 
-    if nn.mode['mid_act_fun'] != 2:
+    # apply Batch normalization
+    if nn.mode['mid_act_fun'] == 3:
+        data_forward['batch_n_class'] = nn.network['batch_n_class']
+        a_mid_normalize = data_forward['batch_n_class'].forward(a_mid_layer)
         z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_normalize)
 
-    else:
+    # apply Dropout
+    elif nn.mode['mid_act_fun'] == 2:
         data_forward['dropout_class'] = Dropout(nn)
         z_mid_layer = data_forward['dropout_class'].forward(nn, a_mid_layer)
+
+    # apply neither Batch normalization nor Dropout
+    else:
+        z_mid_layer = mid_layer_activation(nn.mode['mid_act_fun'], a_mid_layer)
 
     # output_layer : (m, batch_size) -> (c = 10, batch_size)
     a_output_layer = affine_transformation(nn.network['w2'], z_mid_layer, nn.network['b2'])
@@ -488,32 +502,34 @@ def back_prop(nn: NNLearn, data: dict):
         # sigmoid function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) *\
                       (1 - f_sigmoid(data['a1'])) * f_sigmoid(data['a1'])
-        bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
-
-        # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
-        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
-        bp_data['g_en_w1'] = np.dot(bp_data['g_batch_norm'], data['x1'].T)
-        grad_en_b1 = bp_data['g_batch_norm'].sum(axis=1)
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+        grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
         bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     elif nn.mode['mid_act_fun'] == 1:
-        # relu function ver.
+        # ReLU function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+        grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     elif nn.mode['mid_act_fun'] == 2:
         # dropout ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
                                     * data['dropout_class'].backward()
 
-    """
-    # 4. find grad(E_n, X), grad(E_n, W1), grad(E_n, b2)
-    bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
-    bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
-    grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
-    bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
-    """
+    elif nn.mode['mid_act_fun'] == 3:
+        # ReLU + Batch normalization function ver.
+        bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
+        bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_batch_norm'], data['x1'].T)
+        grad_en_b1 = bp_data['g_batch_norm'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
-    # 5. update parameter
+    # 4. update parameter
     if nn.mode['param_update'] == 0:
         sgd(nn, bp_data)
     elif nn.mode['param_update'] == 1:
@@ -544,9 +560,12 @@ def main():
         try:
             print("中間層の活性化関数(またはDropout)を選択してください")
             print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
+            print("3 -> ReLU + Batch Normalization")
             tmp = int(sys.stdin.readline(), 10)
-            if 0 <= tmp <= 2:
+            if 0 <= tmp <= 3:
                 nn.mode['mid_act_fun'] = tmp
+                if tmp == 3:
+                    nn.network['batch_n_class'] = BatchNormalization(nn)
             else:
                 raise Exception("Error: 無効な入力です")
 
@@ -585,7 +604,7 @@ def main():
         forward_data = forward(nn, input_img)
 
         # print cross entropy
-        # print("average cross entropy -> {0}".format(forward_data['avg_entropy']))
+        # print("avg -> {0}, var -> {1}".format(nn.network['batch_n_class'].avg_sum, nn.network['batch_n_class'].var_sum))
 
         # back propagation
         back_prop(nn, forward_data)
@@ -605,7 +624,20 @@ def main():
     filename = str(sys.stdin.readline())
     filename = filename.replace('\n', '')
     filename = filename.replace('\r', '')
-    np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
+    if nn.mode['mid_act_fun'] == 3:
+        avg_exp = nn.network['batch_n_class'].avg_sum / (nn.per_epoch * nn.epoch)
+        var_exp = nn.network['batch_n_class'].var_sum / (nn.per_epoch * nn.epoch)
+        bn_beta = nn.network['batch_n_class'].beta
+        bn_gamma = nn.network['batch_n_class'].gamma
+        bn_eps = nn.network['batch_n_class'].epsilon
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
+                 loss=loss, exp_avg=avg_exp, exp_var=var_exp, beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
+
+    elif nn.mode['mid_act_fun'] == 2:
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
+             b2=nn.network['b2'], loss=loss, rho=forward_data['dropout_class'].rho)
+    else:
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
              b2=nn.network['b2'], loss=loss)
 
 

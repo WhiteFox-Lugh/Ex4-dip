@@ -22,9 +22,8 @@ class NNTest:
     img_div = 255
     c = 10
     m = 200
-    batch_size = 100
+    batch_size = 1
     per_epoch = 10000 // batch_size
-    testtime = 100
     filename = ""
     X, Y = mndata.load_testing()
     X = np.array(X)
@@ -250,6 +249,7 @@ def main():
     incorrect = 0
     iteration_test = []
     accuracy_test = []
+    testtime = 100
     # load parameter
     while True:
         nn = NNTest()
@@ -271,6 +271,7 @@ def main():
 
                 load_param = np.load(nn.filename)
                 mode = 0
+                nn.batch_size = 100
 
                 print("用いる活性化関数を選んでください.")
                 print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
@@ -290,15 +291,24 @@ def main():
                     nn.network['gamma'] = load_param['gamma']
                     nn.network['eps'] = load_param['eps']
 
+                print("テスト回数を入力してください(1~1000).")
+                print("バッチサイズは {0}, テストデータ数は {1} です.".format(nn.batch_size, nn.X.size // nn.d))
+                testtime = int(sys.stdin.readline(), 10)
+
+                if not (1 <= testtime <= 1000):
+                    raise Exception("不正な入力です")
+
             except Exception as e:
                 print("エラー: {0}".format(e))
+                nn.batch_size = 1
 
             else:
                 nn.network['w1'] = load_param['w1']
                 nn.network['w2'] = load_param['w2']
                 nn.network['b1'] = load_param['b1']
                 nn.network['b2'] = load_param['b2']
-                iteration = np.arange(0, 600 * 5, 1)
+                itr_plot_x = load_param['loss'].size
+                iteration = np.arange(0, itr_plot_x, 1)
                 loss = load_param['loss']
                 plt.plot(iteration, loss, label=legend_name, lw=0.5)
                 plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
@@ -317,7 +327,8 @@ def main():
 
                 if 0 <= idx < 10000:
                     # forwarding
-                    forward_data = forward(nn, idx)
+                    nn.network['mode'] = 0
+                    forward_data = forward(nn, nn.X[idx])
                     y = np.argmax(forward_data['y'], axis=0)
                     break
 
@@ -336,7 +347,7 @@ def main():
             plt.show()
 
         else:
-            for itr in p(range(nn.per_epoch * nn.testtime)):
+            for itr in p(range(testtime)):
                 # init
                 input_img = np.array([], dtype='int32')
                 t_label = np.array([], dtype='int32')
@@ -377,9 +388,7 @@ def main():
             plot_continue = int(sys.stdin.readline(), 10)
 
             if plot_continue == 0:
-                if mode == 0:
-                    print("学習時におけるクロスエントロピー誤差の平均値のグラフを出力して終了します")
-                    plt.show()
+                print("終了します")
                 sys.exit(0)
 
         except Exception as e:

@@ -26,7 +26,7 @@ class NNLearn:
     m = 200
     batch_size = 100
     per_epoch = 60000 // batch_size
-    epoch = 5
+    epoch = 30
     p = ProgressBar()
     X, Y = mndata.load_training()
     X = np.array(X)

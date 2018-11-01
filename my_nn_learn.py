@@ -4,16 +4,14 @@ from numpy import ndarray
 import sys
 from mnist import MNIST
 import matplotlib.pyplot as plt
-from pylab import cm
 from progressbar import ProgressBar
 
-#mndata = MNIST("/Users/lugh/Desktop/KUInfo/winter-CS3rd/le4-dip/works")
 mndata = MNIST("./")
 p = ProgressBar()
 
 
 class NNLearn:
-    """ Class of Neural Network (learning).
+    """ Class of Neural Network (learning)
 
     Attributes:
         network: data and parameters in NN.
@@ -66,6 +64,7 @@ class NNLearn:
     bp_param['adam_alpha'] = 10 ** (-3)
 
     def __init__(self):
+        """ Initialize NNLearn Class """
         self.network = {}
         w1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m * self.d)
         self.network['w1'] = w1_tmp.reshape((self.m, self.d))
@@ -78,28 +77,53 @@ class NNLearn:
 
 
 class Dropout:
+    """ Class of Dropout
+
+    Attributes:
+        dropout_num: the node numbers that don't propagate the signal.
+        mask: the mask of dropout.
+
+    """
+    # the rate of dropout
     rho = 0.2
 
-    def __init__(self, nn: NNLearn):
+    def __init__(self, nn):
+        """ Initialize Dropout Class """
         self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
         self.mask = np.zeros((nn.m, nn.batch_size))
 
-    def gen_mask(self, nn: NNLearn) -> ndarray:
+    def gen_mask(self, nn):
+        """ generating mask """
         tmp1 = np.identity(nn.batch_size)[self.dropout_num]
         tmp2 = np.sum(tmp1, axis=0)
         tmp3 = np.repeat(tmp2, nn.m)
         tmp4 = tmp3.reshape(nn.batch_size, nn.m)
         return 1 - tmp4.T
 
-    def forward(self, nn: NNLearn, t: ndarray) -> ndarray:
+    def forward(self, nn, t):
+        """ forwarding in Dropout """
         self.mask = self.gen_mask(nn)
         return t * self.mask
 
-    def backward(self) -> ndarray:
+    def backward(self):
+        """ back propagation in Dropout """
         return self.mask
 
 
 class BatchNormalization:
+    """ Class of Batch normalization
+
+    Attributes:
+        gamma: one of the parameters
+        beta: one of the parameters
+        x_hat: the normalized array
+        avg: the average in each batch
+        var: the variance in each batch
+        avg_sum: the summation of the average
+        var_sum: the summation of the variance
+        epsilon: one of the parameters
+
+    """
     gamma = 1
     beta = 0
     epsilon = []
@@ -109,6 +133,7 @@ class BatchNormalization:
     var_sum = []
 
     def __init__(self, nn: NNLearn):
+        """ Initialize BatchNormalization class """
         self.gamma = 1
         self.beta = 0
         self.x_hat = 0
@@ -119,6 +144,7 @@ class BatchNormalization:
         self.epsilon = 10 ** (-8)
 
     def forward(self, x: ndarray):
+        """ forwarding in Batch normalization """
         self.avg = np.apply_along_axis(np.average, axis=1, arr=x)
         self.avg_sum += self.avg
         self.var = np.apply_along_axis(np.var, axis=1, arr=x)
@@ -128,12 +154,15 @@ class BatchNormalization:
         return tmp_r
 
     def f_normalize(self, t: ndarray):
+        """ normalize the array """
         return (t - self.avg) / np.sqrt(self.var + self.epsilon)
 
     def mult_and_move(self, t: ndarray):
+        """ multiplication and movement """
         return self.gamma * t + self.beta
 
     def backward(self, y: ndarray, nn: NNLearn, f_data: dict):
+        """ back propagation in Batch normalization """
         d_en_xhati = np.apply_along_axis(lambda l: l * self.gamma, axis=0, arr=y)
         d_en_var = np.sum(d_en_xhati * np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1) \
                    / (-2 * (self.var + self.epsilon) ** (3 / 2))
@@ -149,7 +178,7 @@ class BatchNormalization:
         return d_en_xi
 
 
-def f_sigmoid(t: ndarray) -> ndarray:
+def f_sigmoid(t):
     """ Apply sigmoid function.
 
     Args:
@@ -162,7 +191,7 @@ def f_sigmoid(t: ndarray) -> ndarray:
     return 1.0 / (1.0 + np.exp(-t))
 
 
-def relu_forward(t: ndarray) -> ndarray:
+def relu_forward(t):
     """ Apply ReLU function.
 
     Args:
@@ -175,7 +204,7 @@ def relu_forward(t: ndarray) -> ndarray:
     return np.maximum(t, 0)
 
 
-def relu_backward(t: ndarray) -> ndarray:
+def relu_backward(t):
     """ find gradient of ReLU function.
 
     Args:
@@ -188,7 +217,7 @@ def relu_backward(t: ndarray) -> ndarray:
     return np.where(t > 0, 1, 0)
 
 
-def f_softmax(t: ndarray) -> ndarray:
+def f_softmax(t):
     """ Apply softmax function.
 
     Args:
@@ -203,7 +232,7 @@ def f_softmax(t: ndarray) -> ndarray:
     return r
 
 
-def input_layer(nn: NNLearn, x: ndarray) -> ndarray:
+def input_layer(nn, x):
     """ Input layer of NN.
 
     Args:
@@ -219,7 +248,7 @@ def input_layer(nn: NNLearn, x: ndarray) -> ndarray:
     return tmp.T / nn.img_div
 
 
-def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
+def affine_transformation(w, x, b):
     """ Affine transformation in hidden layer.
 
     Args:
@@ -234,11 +263,11 @@ def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
     return np.dot(w, x) + b
 
 
-def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
+def mid_layer_activation(mode, t):
     """ Apply activation function in hidden layer.
 
     Args:
-        mode: decide which activation function is used.
+        mode: decide which activation function is used (type int).
         t: input from previous affine layer.
 
     Returns:
@@ -252,7 +281,7 @@ def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
         return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
-def output_layer_apply(t: ndarray) -> ndarray:
+def output_layer_apply(t):
     """ Apply softmax function in output layer.
 
     Args:
@@ -266,12 +295,12 @@ def output_layer_apply(t: ndarray) -> ndarray:
     return np.apply_along_axis(f_softmax, axis=0, arr=t)
 
 
-def one_hot_vector(t: ndarray, c: int) -> ndarray:
+def one_hot_vector(t, c):
     """ Make one-hot vector
 
     Args:
-        t: correct label
-        c: number of class
+        t: correct label (type ndarray)
+        c: number of class (type int)
 
     Returns:
         correct label (in one-hot vector expression)
@@ -280,7 +309,7 @@ def one_hot_vector(t: ndarray, c: int) -> ndarray:
     return np.identity(c)[t]
 
 
-def cal_cross_entropy(nn: NNLearn, prob: ndarray, label: ndarray) -> ndarray:
+def cal_cross_entropy(nn, prob, label):
     """ Calculate cross entropy
 
     Args:
@@ -303,7 +332,7 @@ def cal_cross_entropy(nn: NNLearn, prob: ndarray, label: ndarray) -> ndarray:
     return e
 
 
-def sgd(nn: NNLearn, bp_data: dict):
+def sgd(nn, bp_data):
     """ Applying Stochastic Gradient Descent (SGD).
 
     Args:
@@ -317,7 +346,7 @@ def sgd(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def momentum_sgd(nn: NNLearn, bp_data: dict):
+def momentum_sgd(nn, bp_data):
     """ Applying Momentum Stochastic Gradient Descent.
 
     Args:
@@ -333,7 +362,7 @@ def momentum_sgd(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def adagrad(nn: NNLearn, bp_data: dict):
+def adagrad(nn, bp_data):
     """ Applying AdaGrad
 
     Args:
@@ -349,7 +378,7 @@ def adagrad(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def rms_prop(nn: NNLearn, bp_data: dict):
+def rms_prop(nn, bp_data):
     """ Applying RMSProp
 
     Args:
@@ -370,7 +399,7 @@ def rms_prop(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def ada_delta(nn: NNLearn, bp_data: dict):
+def ada_delta(nn, bp_data):
     """ Applying AdaDelta
 
     Args:
@@ -400,7 +429,7 @@ def ada_delta(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def adam(nn: NNLearn, bp_data: dict):
+def adam(nn, bp_data):
     """ Applying Adam
 
     Args:
@@ -425,18 +454,17 @@ def adam(nn: NNLearn, bp_data: dict):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 
 
-def forward(nn: NNLearn, input_img: ndarray):
+def forward(nn, input_img):
     """ Forwarding
 
     Args:
         nn: Class NNLearn
-        input_img: selected images
+        input_img: data of images
 
     Returns:
         Dictionary data including the calculation result in each layer.
 
     """
-
     data_forward = {}
 
     # input_layer : (1, batch_size * d) -> (d = 784, batch_size)
@@ -478,7 +506,7 @@ def forward(nn: NNLearn, input_img: ndarray):
     return data_forward
 
 
-def back_prop(nn: NNLearn, data: dict):
+def back_prop(nn, data):
     """ Back propagation
 
     Args:
@@ -497,7 +525,7 @@ def back_prop(nn: NNLearn, data: dict):
     grad_en_b2 = bp_data['g_en_ak'].sum(axis=1)
     bp_data['g_en_b2'] = grad_en_b2.reshape((nn.c, 1))
 
-    # 3. back propagate : activate layer
+    # 3. activate layer
     if nn.mode['mid_act_fun'] == 0:
         # sigmoid function ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) *\
@@ -519,9 +547,13 @@ def back_prop(nn: NNLearn, data: dict):
         # dropout ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) \
                                     * data['dropout_class'].backward()
+        bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_activate_mid'])
+        bp_data['g_en_w1'] = np.dot(bp_data['g_activate_mid'], data['x1'].T)
+        grad_en_b1 = bp_data['g_activate_mid'].sum(axis=1)
+        bp_data['g_en_b1'] = grad_en_b1.reshape((nn.m, 1))
 
     elif nn.mode['mid_act_fun'] == 3:
-        # ReLU + Batch normalization function ver.
+        # ReLU + Batch normalization ver.
         bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
         bp_data['g_batch_norm'] = data['batch_n_class'].backward(bp_data['g_activate_mid'], nn, data)
         bp_data['g_en_x1'] = np.dot(nn.network['w1'].T, bp_data['g_batch_norm'])
@@ -603,9 +635,6 @@ def main():
         # forwarding
         forward_data = forward(nn, input_img)
 
-        # print cross entropy
-        # print("avg -> {0}, var -> {1}".format(nn.network['batch_n_class'].avg_sum, nn.network['batch_n_class'].var_sum))
-
         # back propagation
         back_prop(nn, forward_data)
 
@@ -634,11 +663,11 @@ def main():
                  loss=loss, exp_avg=avg_exp, exp_var=var_exp, beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
 
     elif nn.mode['mid_act_fun'] == 2:
-        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
-             b2=nn.network['b2'], loss=loss, rho=forward_data['dropout_class'].rho)
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
+                 loss=loss, rho=forward_data['dropout_class'].rho)
     else:
-        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
-             b2=nn.network['b2'], loss=loss)
+        np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
+                 loss=loss)
 
 
 if __name__ == "__main__":

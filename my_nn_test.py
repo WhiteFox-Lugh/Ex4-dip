@@ -31,8 +31,8 @@ class NNTest:
     Y = np.array(Y)
 
     def __init__(self):
+        """ initialize NNTest class """
         np.random.seed(3304)
-        # for Exercise 1
         self.network = {}
         w1_tmp = np.random.normal(0, math.sqrt(1 / self.d), self.m * self.d)
         self.network['w1'] = w1_tmp.reshape((self.m, self.d))
@@ -45,28 +45,39 @@ class NNTest:
 
 
 class Dropout:
+    """ Class of Dropout
+
+    Attributes:
+        dropout_num: the node numbers that don't propagate the signal.
+        mask: the mask of dropout.
+
+    """
     rho = 0.2
 
-    def __init__(self, nn: NNTest):
+    def __init__(self, nn):
+        """ initialize Dropout class """
         self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
         self.mask = np.zeros((nn.m, nn.batch_size))
 
-    def gen_mask(self, nn: NNTest) -> ndarray:
+    def gen_mask(self, nn):
+        """ generating mask """
         tmp1 = np.identity(nn.batch_size)[self.dropout_num]
         tmp2 = np.sum(tmp1, axis=0)
         tmp3 = np.repeat(tmp2, nn.m)
         tmp4 = tmp3.reshape(nn.batch_size, nn.m)
         return 1 - tmp4.T
 
-    def forward(self, nn: NNTest, t: ndarray) -> ndarray:
+    def forward(self, nn, t):
+        """ forwarding in Dropout """
         self.mask = self.gen_mask(nn)
         return (1 - self.rho) * t * self.mask
 
-    def backward(self) -> ndarray:
+    def backward(self):
+        """ back propagation in Dropout """
         return self.mask
 
 
-def f_sigmoid(t: ndarray) -> ndarray:
+def f_sigmoid(t):
     """ Apply sigmoid function.
 
     Args:
@@ -79,7 +90,7 @@ def f_sigmoid(t: ndarray) -> ndarray:
     return 1.0 / (1.0 + np.exp(-t))
 
 
-def relu_forward(t: ndarray) -> ndarray:
+def relu_forward(t):
     """ Apply ReLU function.
 
     Args:
@@ -92,7 +103,7 @@ def relu_forward(t: ndarray) -> ndarray:
     return np.maximum(t, 0)
 
 
-def f_softmax(t: ndarray) -> ndarray:
+def f_softmax(t):
     """ Apply softmax function.
 
     Args:
@@ -107,8 +118,27 @@ def f_softmax(t: ndarray) -> ndarray:
     return r
 
 
-def f_bn_test(nn: NNTest, t: ndarray) -> ndarray:
+def f_bn_test(nn, t):
+    """ Batch normalization for test data
+
+    Args:
+        nn: Extends NNTest class.
+        t: the array from the affine layer in hidden layer.
+
+    Returns:
+        The normalized array.
+
+    """
     def trans_y(t):
+        """ transformation in Batch normalization in hidden layer.
+
+        Args:
+            t: ndarray from the affine layer in hidden layer.
+
+        Returns:
+            the normalized array.
+
+        """
         return (nn.network['gamma'] / np.sqrt(nn.network['exp_var'] + nn.network['eps'])) * t +\
                (nn.network['beta'] - (nn.network['gamma'] * nn.network['exp_avg']) /
                 np.sqrt(nn.network['exp_var'] + nn.network['eps']))
@@ -117,7 +147,7 @@ def f_bn_test(nn: NNTest, t: ndarray) -> ndarray:
     return r
 
 
-def input_layer(nn: NNTest, x: ndarray) -> ndarray:
+def input_layer(nn, x):
     """ Input layer of NN.
 
     Args:
@@ -133,7 +163,7 @@ def input_layer(nn: NNTest, x: ndarray) -> ndarray:
     return tmp.T / nn.img_div
 
 
-def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
+def affine_transformation(w, x, b):
     """ Affine transformation in hidden layer.
 
     Args:
@@ -148,7 +178,7 @@ def affine_transformation(w: ndarray, x: ndarray, b: ndarray) -> ndarray:
     return np.dot(w, x) + b
 
 
-def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
+def mid_layer_activation(mode, t):
     """ Apply activation function in hidden layer.
 
     Args:
@@ -166,7 +196,7 @@ def mid_layer_activation(mode: int, t: ndarray) -> ndarray:
         return np.apply_along_axis(relu_forward, axis=0, arr=t)
 
 
-def output_layer_apply(t: ndarray) -> ndarray:
+def output_layer_apply(t):
     """ Apply softmax function in output layer.
 
     Args:
@@ -180,7 +210,7 @@ def output_layer_apply(t: ndarray) -> ndarray:
     return np.apply_along_axis(f_softmax, axis=0, arr=t)
 
 
-def one_hot_vector(t: ndarray, c: int) -> ndarray:
+def one_hot_vector(t, c):
     """ Make one-hot vector
 
     Args:
@@ -194,7 +224,7 @@ def one_hot_vector(t: ndarray, c: int) -> ndarray:
     return np.identity(c)[t]
 
 
-def forward(nn: NNTest, input_img: ndarray):
+def forward(nn, input_img):
     """ Forwarding
 
     Args:
@@ -339,7 +369,6 @@ def main():
                 print(e)
 
         # --- Exercise 1 ver end ---
-
         # -- for showing images --
         if mode == 1:
             plt.imshow(nn.X[idx], cmap=cm.gray)

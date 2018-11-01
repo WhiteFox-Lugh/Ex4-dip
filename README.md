@@ -20,7 +20,7 @@
 - [ ] 手書き数字画像認識コンテスト
 - [x] ReLU
 - [x] Dropout
-- [ ] Batch Normalization
+- [x] Batch Normalization
 - [x] 最適化手法の改良
 
     - [x] Momentum SGD
@@ -31,7 +31,9 @@
 
 - [x] カラー画像への拡張
 - [ ] 畳み込み層
+  * めんどくさいのでやめた
 - [ ] プーリング層
+  * CNN できてないと無理
 
 - [ ] Keras の利用
   

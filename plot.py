@@ -4,6 +4,9 @@ import sys
 
 
 def main():
+    """
+    This is the main function.
+    """
     while True:
         try:
             # load file

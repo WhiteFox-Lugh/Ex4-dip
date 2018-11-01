@@ -44,39 +44,6 @@ class NNTest:
         self.network['b2'] = b2_tmp.reshape((self.c, 1))
 
 
-class Dropout:
-    """ Class of Dropout
-
-    Attributes:
-        dropout_num: the node numbers that don't propagate the signal.
-        mask: the mask of dropout.
-
-    """
-    rho = 0.2
-
-    def __init__(self, nn):
-        """ initialize Dropout class """
-        self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
-        self.mask = np.zeros((nn.m, nn.batch_size))
-
-    def gen_mask(self, nn):
-        """ generating mask """
-        tmp1 = np.identity(nn.batch_size)[self.dropout_num]
-        tmp2 = np.sum(tmp1, axis=0)
-        tmp3 = np.repeat(tmp2, nn.m)
-        tmp4 = tmp3.reshape(nn.batch_size, nn.m)
-        return 1 - tmp4.T
-
-    def forward(self, nn, t):
-        """ forwarding in Dropout """
-        self.mask = self.gen_mask(nn)
-        return (1 - self.rho) * t * self.mask
-
-    def backward(self):
-        """ back propagation in Dropout """
-        return self.mask
-
-
 def f_sigmoid(t):
     """ Apply sigmoid function.
 
@@ -274,154 +241,163 @@ def main():
     """
     This is the main function.
     """
-
+    err_times = 0
     correct = 0
     incorrect = 0
     iteration_test = []
     accuracy_test = []
     testtime = 100
     # load parameter
+    nn = NNTest()
+    nums = list(range(0, nn.X.size // nn.d))
     while True:
-        nn = NNTest()
-        nums = list(range(0, nn.X.size // nn.d))
-        while True:
-            try:
-                print("パラメータを保存してあるファイル名を入力して下さい.")
-                print("読み込まない場合は何も入力せずに Enter を押してください")
-                nn.filename = str(sys.stdin.readline())
-                nn.filename = nn.filename.replace("\n", "")
-                nn.filename = nn.filename.replace("\r", "")
-                legend_name = nn.filename.replace("param_", "")
-                legend_name = legend_name.replace(".npz", "")
+        try:
+            if err_times >= 3:
+                sys.exit(1)
 
-                if nn.filename == "":
-                    print("パラメータをランダムに初期化してテストを行います")
-                    mode = 1
-                    break
+            print("パラメータを保存してあるファイル名を入力して下さい.")
+            print("読み込まない場合は何も入力せずに Enter を押してください")
+            nn.filename = str(sys.stdin.readline())
+            nn.filename = nn.filename.replace("\n", "")
+            nn.filename = nn.filename.replace("\r", "")
+            legend_name = nn.filename.replace("param_", "")
+            legend_name = legend_name.replace(".npz", "")
 
-                load_param = np.load(nn.filename)
-                mode = 0
-                nn.batch_size = 100
-
-                print("用いる活性化関数を選んでください.")
-                print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
-                print("3 -> ReLU + Batch Normalization")
-                nn.network['mode'] = int(sys.stdin.readline(), 10)
-
-                if not (0 <= nn.network['mode'] <= 3):
-                    raise Exception("不正な入力です")
-
-                elif nn.network['mode'] == 2:
-                    nn.network['rho'] = load_param['rho']
-
-                elif nn.network['mode'] == 3:
-                    nn.network['exp_avg'] = load_param['exp_avg']
-                    nn.network['exp_var'] = load_param['exp_var']
-                    nn.network['beta'] = load_param['beta']
-                    nn.network['gamma'] = load_param['gamma']
-                    nn.network['eps'] = load_param['eps']
-
-                print("テスト回数を入力してください(1~1000).")
-                print("バッチサイズは {0}, テストデータ数は {1} です.".format(nn.batch_size, nn.X.size // nn.d))
-                testtime = int(sys.stdin.readline(), 10)
-
-                if not (1 <= testtime <= 1000):
-                    raise Exception("不正な入力です")
-
-            except Exception as e:
-                print("エラー: {0}".format(e))
-                nn.batch_size = 1
-
-            else:
-                nn.network['w1'] = load_param['w1']
-                nn.network['w2'] = load_param['w2']
-                nn.network['b1'] = load_param['b1']
-                nn.network['b2'] = load_param['b2']
-                itr_plot_x = load_param['loss'].size
-                iteration = np.arange(0, itr_plot_x, 1)
-                loss = load_param['loss']
-                plt.plot(iteration, loss, label=legend_name, lw=0.5)
-                plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
-                plt.title("cross entropy error")
-                plt.grid(True)
-                plt.xlabel("itr")
-                plt.ylabel("error avg")
-                plt.show()
+            if nn.filename == "":
+                print("パラメータをランダムに初期化してテストを行います")
+                mode = 1
+                nn.network['mode'] = 0
                 break
 
-        # --- Exercise 1 ver ---
-        while mode == 1:
-            try:
-                print("0以上9999以下の整数を1つ入力してください.")
-                idx = int(sys.stdin.readline(), 10)
+            load_param = np.load(nn.filename)
+            mode = 0
+            nn.batch_size = 100
 
-                if 0 <= idx < 10000:
-                    # forwarding
-                    nn.network['mode'] = 0
-                    forward_data = forward(nn, nn.X[idx])
-                    y = np.argmax(forward_data['y'], axis=0)
-                    break
+            print("用いる活性化関数を選んでください.")
+            print("0 -> sigmoid, 1 -> ReLU, 2 -> Dropout")
+            print("3 -> ReLU + Batch Normalization")
+            nn.network['mode'] = int(sys.stdin.readline(), 10)
 
-                else:
-                    print("Error: 0以上9999以下の整数ではありません")
+            if not (0 <= nn.network['mode'] <= 3):
+                raise Exception("不正な入力です")
 
-            except Exception as e:
-                print(e)
+            elif nn.network['mode'] == 2:
+                nn.network['rho'] = load_param['rho']
 
-        # --- Exercise 1 ver end ---
-        # -- for showing images --
-        if mode == 1:
-            plt.imshow(nn.X[idx], cmap=cm.gray)
-            print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
-            plt.show()
+            elif nn.network['mode'] == 3:
+                nn.network['exp_avg'] = load_param['exp_avg']
+                nn.network['exp_var'] = load_param['exp_var']
+                nn.network['beta'] = load_param['beta']
+                nn.network['gamma'] = load_param['gamma']
+                nn.network['eps'] = load_param['eps']
+
+            print("テスト回数を入力してください(1~1000).")
+            print("バッチサイズは {0}, テストデータ数は {1} です.".format(nn.batch_size, nn.X.size // nn.d))
+            print("テスト回数 1 の場合は、課題4 の仕様の通り画像 1 枚を入力として識別を行います")
+            testtime = int(sys.stdin.readline(), 10)
+
+            if not (1 <= testtime <= 1000):
+                raise Exception("不正な入力です")
+
+        except Exception as e:
+            print("エラー: {0}".format(e))
+            nn.batch_size = 1
+            err_times += 1
 
         else:
-            for itr in p(range(testtime)):
-                # init
-                input_img = np.array([], dtype='int32')
-                t_label = np.array([], dtype='int32')
+            nn.network['w1'] = load_param['w1']
+            nn.network['w2'] = load_param['w2']
+            nn.network['b1'] = load_param['b1']
+            nn.network['b2'] = load_param['b2']
 
-                # select from training data
-                choice_nums = np.random.choice(nums, nn.batch_size, replace=False)
+            if testtime == 1:
+                mode = 1
+                nn.batch_size = 1
+                break
 
-                # data input
-                for i in range(nn.batch_size):
-                    tmp_img = nn.X[choice_nums[i]]
-                    input_img = np.append(input_img, tmp_img)
-                    t_label = np.append(t_label, nn.Y[choice_nums[i]])
-
-                nn.network['t_label'] = t_label
-                nn.network['t_label_one_hot'] = one_hot_vector(t_label, nn.c)
-
-                # forwarding
-                forward_data = forward(nn, input_img)
-                res = np.argmax(forward_data['y'], axis=0)
-                diff = res - t_label
-                correct += np.sum(diff == 0)
-                incorrect += np.sum(diff != 0)
-                accuracy = correct / (correct + incorrect)
-                iteration_test = np.append(iteration_test, itr + 1)
-                accuracy_test = np.append(accuracy_test, accuracy)
-
-            # --- plot accuracy ---
-            plt.plot(iteration_test, accuracy_test)
-            plt.title("accuracy for testdata")
+            # plot graph
+            itr_plot_x = load_param['loss'].size
+            iteration = np.arange(0, itr_plot_x, 1)
+            loss = load_param['loss']
+            plt.plot(iteration, loss, label=legend_name, lw=0.5)
+            plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
+            plt.title("cross entropy error")
             plt.grid(True)
             plt.xlabel("itr")
-            plt.ylabel("accuracy")
+            plt.ylabel("error avg")
             plt.show()
-            print("accuracy -> {0}".format(accuracy))
+            iteration_test = []
+            accuracy_test = []
 
+            break
+
+    # --- Exercise 1 ver ---
+    err_times = 0
+    while mode == 1:
         try:
-            print("続けてテストする場合は1を入力してください. 終了する場合は0を入れてください")
-            plot_continue = int(sys.stdin.readline(), 10)
-
-            if plot_continue == 0:
-                print("終了します")
+            if err_times >= 3:
                 sys.exit(0)
+
+            print("0以上9999以下の整数を1つ入力してください.")
+            idx = int(sys.stdin.readline(), 10)
+
+            if 0 <= idx < 10000:
+                # forwarding
+                forward_data = forward(nn, nn.X[idx])
+                y = np.argmax(forward_data['y'], axis=0)
+                break
+
+            else:
+                print("Error: 0以上9999以下の整数ではありません")
+                err_times += 1
 
         except Exception as e:
             print(e)
+
+    # --- Exercise 1 ver end ---
+    # -- for showing images --
+    if mode == 1:
+        plt.imshow(nn.X[idx], cmap=cm.gray)
+        print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
+        plt.show()
+
+    else:
+        for itr in p(range(testtime)):
+            # init
+            input_img = np.array([], dtype='int32')
+            t_label = np.array([], dtype='int32')
+
+            # select from training data
+            choice_nums = np.random.choice(nums, nn.batch_size, replace=False)
+
+            # data input
+            for i in range(nn.batch_size):
+                tmp_img = nn.X[choice_nums[i]]
+                input_img = np.append(input_img, tmp_img)
+                t_label = np.append(t_label, nn.Y[choice_nums[i]])
+
+            nn.network['t_label'] = t_label
+            nn.network['t_label_one_hot'] = one_hot_vector(t_label, nn.c)
+
+            # forwarding
+            forward_data = forward(nn, input_img)
+            res = np.argmax(forward_data['y'], axis=0)
+            diff = res - t_label
+            correct += np.sum(diff == 0)
+            incorrect += np.sum(diff != 0)
+            accuracy = correct / (correct + incorrect)
+            iteration_test = np.append(iteration_test, itr + 1)
+            accuracy_test = np.append(accuracy_test, accuracy)
+
+        # --- plot accuracy ---
+        plt.plot(iteration_test, accuracy_test)
+        plt.title("accuracy for testdata")
+        plt.grid(True)
+        plt.xlabel("itr")
+        plt.ylabel("accuracy")
+        plt.show()
+        print("accuracy -> {0}".format(accuracy))
+        sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -85,20 +85,20 @@ class Dropout:
 
     """
     # the rate of dropout
-    rho = 0.2
+    rho = 0.5
 
     def __init__(self, nn):
         """ Initialize Dropout Class """
-        self.dropout_num = np.random.choice(nn.batch_size, int(nn.batch_size * self.rho), replace=False)
+        self.dropout_num = np.random.choice(nn.m, int(nn.m * self.rho), replace=False)
         self.mask = np.zeros((nn.m, nn.batch_size))
 
     def gen_mask(self, nn):
         """ generating mask """
-        tmp1 = np.identity(nn.batch_size)[self.dropout_num]
+        tmp1 = np.identity(nn.m)[self.dropout_num]
         tmp2 = np.sum(tmp1, axis=0)
-        tmp3 = np.repeat(tmp2, nn.m)
-        tmp4 = tmp3.reshape(nn.batch_size, nn.m)
-        return 1 - tmp4.T
+        tmp3 = np.repeat(tmp2, nn.batch_size)
+        tmp4 = tmp3.reshape((nn.m, nn.batch_size))
+        return 1 - tmp4
 
     def forward(self, nn, t):
         """ forwarding in Dropout """

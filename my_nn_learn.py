@@ -652,22 +652,25 @@ def main():
             plt.xlabel("itr")
             plt.ylabel("entropy")
             plt.show()
-
             # print accuracy
-            res = np.argmax(forward_data['y'], axis=0)
-            diff = res - t_label
-            correct += np.sum(diff == 0)
-            incorrect += np.sum(diff != 0)
-            accuracy = correct / (correct + incorrect)
-            epoch += 1
-            iteration_train = np.append(iteration_train, epoch)
-            accuracy_train = np.append(accuracy_train, accuracy)
             plt.plot(iteration_train, accuracy_train)
             plt.title("accuracy for train data")
             plt.grid(True)
             plt.xlabel("epoch")
             plt.ylabel("accuracy")
             plt.show()
+
+        q_epoch = nn.per_epoch // 4
+        if (itr % nn.per_epoch) % q_epoch == 0:
+            # plot accuracy
+            res = np.argmax(forward_data['y'], axis=0)
+            diff = res - t_label
+            correct += np.sum(diff == 0)
+            incorrect += np.sum(diff != 0)
+            accuracy = correct / (correct + incorrect)
+            epoch += 0.25
+            iteration_train = np.append(iteration_train, epoch)
+            accuracy_train = np.append(accuracy_train, accuracy)
 
     # save parameters
     print("パラメータを保存するファイルの名前を ***.npz の形式で入力してください")
@@ -681,14 +684,15 @@ def main():
         bn_gamma = nn.network['batch_n_class'].gamma
         bn_eps = nn.network['batch_n_class'].epsilon
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss, exp_avg=avg_exp, exp_var=var_exp, beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train, exp_avg=avg_exp, exp_var=var_exp,
+                 beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
 
     elif nn.mode['mid_act_fun'] == 2:
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss, rho=forward_data['dropout_class'].rho)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train, rho=forward_data['dropout_class'].rho)
     else:
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train)
 
 
 if __name__ == "__main__":

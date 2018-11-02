@@ -250,7 +250,7 @@ class Dropout:
 
     """
     # the rate of dropout
-    rho = 0.2
+    rho = 0.5
 
     def __init__(self, nn):
         """ Initialize Dropout Class """
@@ -282,11 +282,11 @@ class Dropout:
  
  \subsubsection*{実行結果}
  
-バッチサイズ $100$、学習係数 $0.01$、エポック数 $30$ 、最適化手法をSGDにし、活性化関数をReLU関数にしたもの（ファイル名: param\_sigmoid\_sgd\_30.npz ）とDropout に設定したもの（ファイル名: param\_dropout\_sgd\_30.npz ）をそれぞれ学習させた。なおDropout において、無視するノードの割合であるパラメータ$\rho$は$\rho = 0.2$とした。横軸に学習回数、縦軸にクロスエントロピー誤差の平均値をとったグラフを作成したところ、以下の図 \ref{fig-A-2-1} のようになった。
+バッチサイズ $100$、学習係数 $0.01$、エポック数 $30$ 、最適化手法をSGDにし、活性化関数をReLU関数にしたもの（ファイル名: param\_relu\_sgd\_30.npz ）とDropout に設定したもの（ファイル名: param\_dropout\_sgd\_30.npz ）をそれぞれ学習させた。なおDropout において、無視するノードの割合であるパラメータ$\rho$は$\rho = 0.5$とした。横軸に学習回数、縦軸にクロスエントロピー誤差の平均値をとったグラフを作成したところ、以下の図 \ref{fig-A-2-1} のようになった。
 
-\image{シグモイド関数とDropout の比較}{report_a1-1.png}{fig-A-2-1}
+\image{ReLU関数とDropout の比較}{report_a2-1.png}{fig-A-2-1}
 
-図 \ref{fig-A-2-1} の青い線がシグモイド関数を用いた時のクロスエントロピー誤差の平均値の値、橙色の線がReLU関数を用いた時の値である。図 \ref{fig-A-2-1} からReLU関数を用いた時も正しく学習が進んでいることと、シグモイド関数を用いた時よりも学習が早く、また学習用データに対しての認識精度もシグモイド関数を用いた時より上がっていることがわかる。
+図 \ref{fig-A-2-1} の青い線がReLU関数を用いた時のクロスエントロピー誤差の平均値の値、橙色の線がDropoutを用いた時の値である。図 \ref{fig-A-2-1} から
 
 また、テストデータを用いて、param\_sigmoid\_sgd\_30.npz、param\_relu\_sgd\_30.npz のそれぞれに対して1000回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
 

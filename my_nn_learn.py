@@ -583,7 +583,11 @@ def main():
 
     nn = NNLearn()
     nums = list(range(0, nn.X.size // nn.d))
-
+    correct = 0
+    incorrect = 0
+    epoch = 0
+    iteration_train = []
+    accuracy_train = []
     loss = np.array([])
     iteration = np.array([], dtype='int32')
 
@@ -642,10 +646,27 @@ def main():
         loss = np.append(loss, forward_data['avg_entropy'])
 
         if itr % nn.per_epoch == nn.per_epoch - 1:
+            # print loss
             plt.plot(iteration, loss)
             plt.title("entropy")
             plt.xlabel("itr")
             plt.ylabel("entropy")
+            plt.show()
+
+            # print accuracy
+            res = np.argmax(forward_data['y'], axis=0)
+            diff = res - t_label
+            correct += np.sum(diff == 0)
+            incorrect += np.sum(diff != 0)
+            accuracy = correct / (correct + incorrect)
+            epoch += 1
+            iteration_train = np.append(iteration_train, epoch)
+            accuracy_train = np.append(accuracy_train, accuracy)
+            plt.plot(iteration_train, accuracy_train)
+            plt.title("accuracy for train data")
+            plt.grid(True)
+            plt.xlabel("epoch")
+            plt.ylabel("accuracy")
             plt.show()
 
     # save parameters

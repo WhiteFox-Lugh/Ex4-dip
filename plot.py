@@ -20,7 +20,6 @@ def main():
         try:
             # load file
             print("パラメータを保存してあるファイル名を入力して下さい.")
-            print("読み込まない場合は何も入力せずに Enter を押してください")
             filename = str(sys.stdin.readline())
             filename = filename.replace("\n", "")
             filename = filename.replace("\r", "")
@@ -44,11 +43,13 @@ def main():
                 # plot accuracy
                 iteration_train = load_param['t_acc_itr']
                 accuracy_train = load_param['t_acc']
-                plt.plot(iteration_train, accuracy_train)
+                plt.plot(iteration_train, accuracy_train, label=legend_name, lw=2.0)
+                plt.legend(bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=1, fontsize=18)
                 plt.title("accuracy for train data")
                 plt.grid(True)
                 plt.xlabel("epoch")
                 plt.ylabel("accuracy")
+                print("final accuracy -> {0}".format(accuracy_train[-1]))
 
             # continue or exit
             print("続けて plot する場合は1, 終了する場合は0を入力してください.")

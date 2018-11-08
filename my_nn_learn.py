@@ -85,7 +85,7 @@ class Dropout:
 
     """
     # the rate of dropout
-    rho = 0.5
+    rho = 0.3
 
     def __init__(self, nn):
         """ Initialize Dropout Class """
@@ -374,8 +374,8 @@ def adagrad(nn, bp_data):
     nn.bp_param['ag_h2'] = nn.bp_param['ag_h2'] + (bp_data['g_en_w2'] * bp_data['g_en_w2'])
     nn.network['w1'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h1'])) * bp_data['g_en_w1']
     nn.network['w2'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h2'])) * bp_data['g_en_w2']
-    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
-    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+    nn.network['b1'] -= nn.bp_param['lr'] * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.bp_param['lr'] * bp_data['g_en_b2']
 
 
 def rms_prop(nn, bp_data):

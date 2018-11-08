@@ -7,6 +7,7 @@ def main():
     """
     This is the main function.
     """
+    plot_time = 0
     while True:
         try:
             print("プロットするデータを選んでください")
@@ -29,10 +30,22 @@ def main():
             itr_plot_x = load_param['loss'].size
             iteration = np.arange(0, itr_plot_x, 1)
             loss = load_param['loss']
+            # color name
+            if plot_time >= 1:
+                print("凡例のカラー名を入力して下さい.")
+                print("r,g,b,c,m,y,k などが使えます. 何も入力しなければデフォルトになります.")
+                color_name = sys.stdin.readline()
+                color_name = color_name.replace('\n', '')
+                color_name = color_name.replace('\r', '')
 
             # plot loss
             if mode == 0:
-                plt.plot(iteration, loss, label=legend_name, lw=0.5)
+                if plot_time == 0 or color_name == "":
+                    plt.plot(iteration, loss, label=legend_name, lw=0.5)
+
+                else:
+                    plt.plot(iteration, loss, label=legend_name, color=color_name, lw=0.5)
+
                 plt.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=1, fontsize=18)
                 plt.title("cross entropy error")
                 plt.grid(True)
@@ -57,6 +70,8 @@ def main():
             if cont == 0:
                 plt.show()
                 break
+            else:
+                plot_time = plot_time + 1
 
         except Exception as e:
             print("エラー: {0}".format(e))

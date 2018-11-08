@@ -221,7 +221,7 @@ bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * rel
 
 \begin{table}[H]
 \begin{center}
-\caption{テストデータでの認識精度}
+\caption{テストデータでの認識精度(活性化関数の比較)}
   \begin{tabular}{|c|c|} \hline
     活性化関数 & 認識精度  \\ \hline \hline
     シグモイド & 91.052 \%  \\ \hline
@@ -288,15 +288,15 @@ class Dropout:
 
 図 \ref{fig-A-2-1} の青い線がReLU関数を用いた時のクロスエントロピー誤差の平均値の値、橙色の線がDropoutを用いた時の値である。図 \ref{fig-A-2-1} から
 
-また、テストデータを用いて、param\_sigmoid\_sgd\_30.npz、param\_relu\_sgd\_30.npz のそれぞれに対して1000回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
+また、テストデータを用いて、param\_relu\_sgd\_30.npz、param\_dropout\_sgd\_30.npz のそれぞれに対して1000回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
 
 \begin{table}[H]
 \begin{center}
-\caption{テストデータでの認識精度}
+\caption{テストデータでの認識精度(ReLU と Dropout の比較)}
   \begin{tabular}{|c|c|} \hline
     活性化関数 & 認識精度  \\ \hline \hline
-    シグモイド & 91.052 \%  \\ \hline
     ReLU & 94.773 \% \\ \hline
+    Dropout & 91.77 \% \\ \hline
   \end{tabular}
 	\label{table-A1-1}
 \end{center}
@@ -306,6 +306,36 @@ class Dropout:
  
 \subsection*{A4-1: 最適化手法の改良...Momentum SGD}
 
+\subsubsection*{実装内容}
+my\_nn\_learn.py に新しく momentum\_sgd 関数を定義した。momentum\_sgd 関数の内容は以下のソースコード \ref{A4-1-1}の通りである。
+\begin{lstlisting}[caption="Momentum SGD",label=A4-1-1]
+def momentum_sgd(nn, bp_data):
+    nn.bp_param['msgd_w1'] = (nn.alpha * nn.bp_param['msgd_w1']) - (nn.eta * bp_data['g_en_w1'])
+    nn.bp_param['msgd_w2'] = (nn.alpha * nn.bp_param['msgd_w2']) - (nn.eta * bp_data['g_en_w2'])
+    nn.network['w1'] += nn.bp_param['msgd_w1']
+    nn.network['w2'] += nn.bp_param['msgd_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+\end{lstlisting}
+
+この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+
+また、クラス NNLearn 内にパラメータ $\alpha, \Delta W$ の初期値を記入できるようにした。学習率 $\eta$ については SGD のときと共用で用いる。
+\begin{lstlisting}[caption="Momentum SGD",label=A4-1-1]
+class NNLearn:
+    # --- for Momentum SGD ---
+    alpha = 0.9
+    bp_param = {}
+    bp_param['msgd_w1'] = np.zeros((m, d))
+    bp_param['msgd_w2'] = np.zeros((c, m))
+\end{lstlisting}
+\subsubsection*{実行結果}
+
+活性化関数を ReLU、最適化手法を Momentum SGD にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \alpha = 0.9$ に設定して 30 エポック学習させた。図 \ref{fig-A4-1-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+
+\image{SGDとMomentum SGDの比較}{report_a4-1.png}{fig-A4-1-1}
+
+図\ref{fig-A4-1-1} の青色の線が最適化手法を SGD にしたもの、桃色の線が Momentum SGD にしたものである。図\ref{fig-A4-1-1} から、Momentum SGD の方が学習が早く、また、学習の終盤において、SGDよりもクロスエントロピー誤差の平均値の振幅が小さくなっていること、および、クロスエントロピー誤差の平均値の値が SGD の値を用いた時よりも小さくなっていることがわかる。
 
 \subsection*{A4-2: 最適化手法の改良...AdaGrad}
 
@@ -314,6 +344,22 @@ class Dropout:
 \subsection*{A4-4: 最適化手法の改良...AdaDelta}
 
 \subsection*{A4-5: 最適化手法の改良...Adam}
+
+\subsection*{A4 最適化手法の改良...比較}
+
+テスト用データを用いて、バッチサイズ100、テスト回数100にしてそれぞれの最適化手法でテストを行ったところ、認識精度は表\ref{tableA4} のようになった。\\
+
+\begin{table}[H]
+\begin{center}
+\caption{テストデータでの認識精度(最適化手法での比較)}
+  \begin{tabular}{|c|c|} \hline
+    最適化手法 & 認識精度  \\ \hline \hline
+    SGD & 94.773 \% \\ \hline
+    Momentum SGD & 97.930 \% \\ \hline
+  \end{tabular}
+	\label{tableA4}
+\end{center}
+\end{table}
 
 \subsection*{A5: カラー画像への拡張}
 

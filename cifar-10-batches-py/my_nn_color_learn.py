@@ -5,7 +5,6 @@ import sys
 import matplotlib.pyplot as plt
 from pylab import cm
 import cPickle as cPickle
-from progressbar import ProgressBar
 
 
 class NNcolorlearn:
@@ -22,8 +21,7 @@ class NNcolorlearn:
     m = 1000
     batch_size = 100
     per_epoch = 10000 // batch_size
-    epoch = 150
-    p = ProgressBar()
+    epoch = 300
     f = "./data_batch_1"
     with open(f, 'rb') as fo:
         dict = cPickle.load(fo)
@@ -214,14 +212,14 @@ def adam(nn, bp_data):
     nn.bp_param['adam_t'] = nn.bp_param['adam_t'] + 1
     beta1 = nn.bp_param['adam_beta1']
     beta2 = nn.bp_param['adam_beta2']
-    nn.bp_param['adam_m1'] = beta1 * nn.bp_param['adam_m1'] + (1 - beta1) * bp_data['g_en_w1']
-    nn.bp_param['adam_m2'] = beta1 * nn.bp_param['adam_m2'] + (1 - beta1) * bp_data['g_en_w2']
-    nn.bp_param['adam_v1'] = beta2 * nn.bp_param['adam_v1'] + (1 - beta2) * bp_data['g_en_w1'] * bp_data['g_en_w1']
-    nn.bp_param['adam_v2'] = beta2 * nn.bp_param['adam_v2'] + (1 - beta2) * bp_data['g_en_w2'] * bp_data['g_en_w2']
-    m_hat1 = nn.bp_param['adam_m1'] / (1 - beta1 ** nn.bp_param['adam_t'])
-    m_hat2 = nn.bp_param['adam_m2'] / (1 - beta1 ** nn.bp_param['adam_t'])
-    v_hat1 = nn.bp_param['adam_v1'] / (1 - beta2 ** nn.bp_param['adam_t'])
-    v_hat2 = nn.bp_param['adam_v2'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    nn.bp_param['adam_m1'] = beta1 * nn.bp_param['adam_m1'] + (1.0 - beta1) * bp_data['g_en_w1']
+    nn.bp_param['adam_m2'] = beta1 * nn.bp_param['adam_m2'] + (1.0 - beta1) * bp_data['g_en_w2']
+    nn.bp_param['adam_v1'] = beta2 * nn.bp_param['adam_v1'] + (1.0 - beta2) * bp_data['g_en_w1'] * bp_data['g_en_w1']
+    nn.bp_param['adam_v2'] = beta2 * nn.bp_param['adam_v2'] + (1.0 - beta2) * bp_data['g_en_w2'] * bp_data['g_en_w2']
+    m_hat1 = nn.bp_param['adam_m1'] / (1.0 - beta1 ** nn.bp_param['adam_t'])
+    m_hat2 = nn.bp_param['adam_m2'] / (1.0 - beta1 ** nn.bp_param['adam_t'])
+    v_hat1 = nn.bp_param['adam_v1'] / (1.0 - beta2 ** nn.bp_param['adam_t'])
+    v_hat2 = nn.bp_param['adam_v2'] / (1.0 - beta2 ** nn.bp_param['adam_t'])
     nn.network['w1'] -= (nn.bp_param['adam_alpha'] * m_hat1) / (np.sqrt(v_hat1) + nn.bp_param['adam_epsilon'])
     nn.network['w2'] -= (nn.bp_param['adam_alpha'] * m_hat2) / (np.sqrt(v_hat2) + nn.bp_param['adam_epsilon'])
     nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
@@ -323,9 +321,13 @@ def main():
 
     loss = np.array([])
     iteration = np.array([], dtype='int32')
+    iteration_train = []
+    accuracy_train = []
+    correct = 0
+    incorrect = 0
+    epoch = 0
 
-    for itr in nn.p(range(nn.per_epoch * nn.epoch)):
-        nn.p.update(itr)
+    for itr in range(nn.per_epoch * nn.epoch):
         # init
         input_img = np.array([], dtype='int32')
         t_label = np.array([], dtype='int32')
@@ -351,20 +353,36 @@ def main():
         # back propagation
         back_prop(nn, forward_data)
 
-        # entropy plot
-        # iteration = np.append(iteration, itr + 1)
-        # loss = np.append(loss, forward_data['avg_entropy'])
+        iteration = np.append(iteration, itr + 1)
+        loss = np.append(loss, forward_data['avg_entropy'])
 
-        if itr % nn.per_epoch == nn.per_epoch - 1:
-            iteration = np.append(iteration, (itr // nn.per_epoch))
-            loss = np.append(loss, forward_data['avg_entropy'])
+        if itr % (nn.per_epoch * 10) == (nn.per_epoch * 10) - 1 and itr != 0:
+            # print loss
             plt.plot(iteration, loss)
             plt.title("entropy")
-            plt.xlim([0, 150])
-            plt.ylim([-0.1, 2.20])
             plt.xlabel("itr")
             plt.ylabel("entropy")
             plt.show()
+            # print accuracy
+            plt.plot(iteration_train, accuracy_train)
+            plt.title("accuracy for train data")
+            plt.grid(True)
+            plt.xlabel("epoch")
+            plt.ylabel("accuracy")
+            plt.show()
+
+        q_epoch = nn.per_epoch / 4
+        if (itr % nn.per_epoch) % q_epoch == 0:
+            # plot accuracy
+            res = np.argmax(forward_data['y'], axis=0)
+            diff = res - t_label
+            correct += np.sum(diff == 0)
+            incorrect += np.sum(diff != 0)
+            accuracy = (correct * 1.0) / (correct + incorrect)
+            epoch += 0.25
+            iteration_train = np.append(iteration_train, epoch)
+            accuracy_train = np.append(accuracy_train, accuracy)
+
 
     # save parameters
     print("input filename of parameters datafile (format: ***.npz)")
@@ -372,7 +390,7 @@ def main():
     filename = filename.replace('\n', '')
     filename = filename.replace('\r', '')
     np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'],
-             b2=nn.network['b2'], loss=loss)
+             b2=nn.network['b2'], loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train)
 
     """
     plt.imshow(nn.data_x[idx].transpose((1, 2, 0)))

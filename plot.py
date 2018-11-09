@@ -31,16 +31,15 @@ def main():
             iteration = np.arange(0, itr_plot_x, 1)
             loss = load_param['loss']
             # color name
-            if plot_time >= 1:
-                print("凡例のカラー名を入力して下さい.")
-                print("r,g,b,c,m,y,k などが使えます. 何も入力しなければデフォルトになります.")
-                color_name = sys.stdin.readline()
-                color_name = color_name.replace('\n', '')
-                color_name = color_name.replace('\r', '')
+            print("凡例のカラー名を入力して下さい.")
+            print("r,g,b,c,m,y,k などが使えます. 何も入力しなければデフォルトになります.")
+            color_name = sys.stdin.readline()
+            color_name = color_name.replace('\n', '')
+            color_name = color_name.replace('\r', '')
 
             # plot loss
             if mode == 0:
-                if plot_time == 0 or color_name == "":
+                if color_name == "":
                     plt.plot(iteration, loss, label=legend_name, lw=0.5)
 
                 else:
@@ -51,6 +50,7 @@ def main():
                 plt.grid(True)
                 plt.xlabel("itr")
                 plt.ylabel("error avg")
+                plt.ylim(0.0, 0.3)
 
             elif mode == 1:
                 # plot accuracy

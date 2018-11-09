@@ -196,12 +196,16 @@ def relu_forward(t):
     return np.maximum(t, 0)
 \end{lstlisting}
 
+これは、$t$ と $0$ のうち大きい方を返すように実装している。
+
 また、ReLU の逆伝播を行う関数については以下のソースコード \ref{A1-2} のようになっている。
 
 \begin{lstlisting}[caption="ReLU 関数(逆伝播)",label=A1-2]
 def relu_backward(t):
     return np.where(t > 0, 1, 0)
 \end{lstlisting}
+
+順伝播で $t > 0$ となっている要素に対しては1, それ以外に対しては 0 を返す実装になっている。\\
 
 必須課題においては中間層の活性化関数にシグモイド関数を用いていたが、この活性化関数を ReLU 関数に置き換えられるように my\_nn\_learn.py を実行した時に選択できるようにした。また、逆伝播についても、順伝播でReLUを用いた時は、ReLU 関数の微分に置き換えられる。ReLUの逆伝搬を行っている部分は、my\_nn\_learn.py の 540 行目にあたり、以下のソースコード \ref{A1-3} のようになっている。
 
@@ -303,6 +307,8 @@ class Dropout:
 \end{table}
 
 表 \ref{table-A1-1} から、ReLU関数の方がシグモイド関数を用いるより認識精度が高く、汎化性能が高いことがわかる。
+
+% Dropout まだレポート部分は完成してないよ！！
  
 \subsection*{A4-1: 最適化手法の改良...Momentum SGD}
 
@@ -320,9 +326,12 @@ def momentum_sgd(nn, bp_data):
 
 この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
 
-また、クラス NNLearn 内にパラメータ $\alpha, \Delta W$ の初期値を記入できるようにした。学習率 $\eta$ については SGD のときと共用で用いる。
-\begin{lstlisting}[caption="Momentum SGD",label=A4-1-1]
+また、クラス NNLearn 内にパラメータ $\alpha, \Delta W$ の初期値を記入できるようにした。学習率 $\eta$ については SGD のときと共用で用いる。パラメータの設定部はソースコード\ref{A4-1-2}のようになっている。
+\begin{lstlisting}[caption="Momentum SGDのパラメータ設定部",label=A4-1-2]
 class NNLearn:
+
+	...
+	
     # --- for Momentum SGD ---
     alpha = 0.9
     bp_param = {}
@@ -339,27 +348,249 @@ class NNLearn:
 
 \subsection*{A4-2: 最適化手法の改良...AdaGrad}
 
+\subsubsection*{実装内容}
+my\_nn\_learn.py に新しく adagrad 関数を定義した。adagrad 関数の内容は以下のソースコード \ref{A4-2-1}の通りである。
+\begin{lstlisting}[caption="AdaGrad",label=A4-2-1]
+def adagrad(nn, bp_data):
+    nn.bp_param['ag_h1'] = nn.bp_param['ag_h1'] + (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['ag_h2'] = nn.bp_param['ag_h2'] + (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.network['w1'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h1'])) * bp_data['g_en_w1']
+    nn.network['w2'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h2'])) * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.bp_param['lr'] * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.bp_param['lr'] * bp_data['g_en_b2']
+\end{lstlisting}
+
+この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+
+また、クラス NNLearn 内にパラメータ $\eta, h$ の初期値を記入できるようにした。ソースコード\ref{A4-2-2}はパラメータ設定部のコードである。
+\begin{lstlisting}[caption="AdaGrad のパラメータ設定部",label=A4-2-2]
+class NNLearn:
+
+	...
+	
+    # --- for AdaGrad ---
+    bp_param['ag_h1'] = 10 ** (-8)
+    bp_param['ag_h2'] = 10 ** (-8)
+    bp_param['lr'] = 0.001
+\end{lstlisting}
+
+bp\_param['ag\_h1'], bp\_param['ag\_h2'] はそれぞれ$W_1, W_2$用のパラメータ、bp\_param['lr'] は学習率である。
+
+\subsubsection*{実行結果}
+
+活性化関数を ReLU、最適化手法を AdaGrad にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.001, h = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-2-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+
+\image{SGDとMomentum SGDの比較}{report_a4-2.png}{fig-A4-2-1}
+
+図\ref{fig-A4-2-1} の青色の線が最適化手法を SGD にしたもの、黄土色の線が AdaGrad にしたものである。SGDを用いた時とAdaGradを用いた時ではあまり学習効率に差は見られない。
+
 \subsection*{A4-3: 最適化手法の改良...RMSProp}
+
+\subsubsection*{実装内容}
+my\_nn\_learn.py に新しく rms\_prop 関数を定義した。rms\_prop 関数の内容は以下のソースコード \ref{A4-3-1}の通りである。
+\begin{lstlisting}[caption="RMSProp",label=A4-3-1]
+def rms_prop(nn, bp_data):
+
+    rho = nn.bp_param['rmsprop_rho']
+    epsilon = nn.bp_param['rmsprop_epsilon']
+    nn.bp_param['rmsprop_h1'] = rho * nn.bp_param['rmsprop_h1'] +\
+                                (1 - rho) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['rmsprop_h2'] = rho * nn.bp_param['rmsprop_h2'] +\
+                                (1 - rho) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.network['w1'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h1']) + epsilon)) * bp_data['g_en_w1']
+    nn.network['w2'] -= (nn.bp_param['lr'] / (np.sqrt(nn.bp_param['rmsprop_h2']) + epsilon)) * bp_data['g_en_w2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+\end{lstlisting}
+
+この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+
+また、クラス NNLearn 内にパラメータ $\eta, h$ の初期値を記入できるようにした。ソースコード\ref{A4-3-2}はパラメータ設定部のコードである。
+\begin{lstlisting}[caption="RMSProp のパラメータ設定部",label=A4-3-2]
+class NNLearn:
+
+	...
+	
+    # --- for RMSProp ---
+    bp_param['rmsprop_h1'] = 0
+    bp_param['rmsprop_h2'] = 0
+    bp_param['rmsprop_rho'] = 0.9
+    bp_param['rmsprop_epsilon'] = 10 ** (-8)
+\end{lstlisting}
+
+bp\_param['rmsprop\_h1'], bp\_param['rmsprop\_h2'] はそれぞれ$W_1, W_2$用のパラメータ、bp\_param['rmsprop\_rho']、bp\_param['rmsprop\_epsilon'] はそれぞれテキストの$\rho, \epsilon$に対応したパラメータである。
+
+\subsubsection*{実行結果}
+
+活性化関数を ReLU、最適化手法を RMSProp にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.9, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-3-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、RMSProp は AdaGrad の改良版であるとのことから、最適化手法を AdaGrad にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+
+\image{AdaGradとRMSPropの比較}{report_a4-3.png}{fig-A4-3-1}
+
+図\ref{fig-A4-3-1} の黄土色の線が最適化手法を AdaGrad にしたもの、濃い橙色の線が RMSProp にしたものである。図\ref{fig-A4-3-1} から RMSProp の方が学習が早く、かつ学習の後半でクロスエントロピー誤差の平均値が AdaGrad を用いた時よりも値が小さくなっている。また、クロスエントロピー誤差の平均値の値の振幅が小さくなっていることから、学習の後半で適切に学習率が調整されていることがわかる。
 
 \subsection*{A4-4: 最適化手法の改良...AdaDelta}
 
+\subsubsection*{実装内容}
+my\_nn\_learn.py に新しく ada\_delta 関数を定義した。ada\_delta 関数の内容は以下のソースコード \ref{A4-4-1}の通りである。
+\begin{lstlisting}[caption="AdaDelta",label=A4-4-1]
+def ada_delta(nn, bp_data):
+    rho = nn.bp_param['adadelta_rho']
+    nn.bp_param['adadelta_h1'] = rho * nn.bp_param['adadelta_h1'] +\
+                           (1 - rho) * (bp_data['g_en_w1'] * bp_data['g_en_w1'])
+    nn.bp_param['adadelta_h2'] = rho * nn.bp_param['adadelta_h2'] +\
+                           (1 - rho) * (bp_data['g_en_w2'] * bp_data['g_en_w2'])
+    nn.bp_param['adadelta_dw1'] = ((-np.sqrt(nn.bp_param['adadelta_s1'] + nn.bp_param['adadelta_epsilon']))
+                                   / np.sqrt(nn.bp_param['adadelta_h1'] + nn.bp_param['adadelta_epsilon']))\
+                                  * bp_data['g_en_w1']
+    nn.bp_param['adadelta_dw2'] = ((-np.sqrt(nn.bp_param['adadelta_s2'] + nn.bp_param['adadelta_epsilon']))
+                                   / np.sqrt(nn.bp_param['adadelta_h2'] + nn.bp_param['adadelta_epsilon']))\
+                                  * bp_data['g_en_w2']
+    nn.bp_param['adadelta_s1'] = rho * nn.bp_param['adadelta_s1'] +\
+                           (1 - rho) * (nn.bp_param['adadelta_dw1'] * nn.bp_param['adadelta_dw1'])
+    nn.bp_param['adadelta_s2'] = rho * nn.bp_param['adadelta_s2'] +\
+                           (1 - rho) * (nn.bp_param['adadelta_dw2'] * nn.bp_param['adadelta_dw2'])
+    nn.network['w1'] += nn.bp_param['adadelta_dw1']
+    nn.network['w2'] += nn.bp_param['adadelta_dw2']
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+\end{lstlisting}
+
+この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+
+また、クラス NNLearn 内にパラメータ $\rho, \epsilon$ の初期値を記入できるようにした。ソースコード\ref{A4-4-2}はパラメータ設定部のコードである。
+\begin{lstlisting}[caption="AdaDelta のパラメータ設定部",label=A4-4-2]
+class NNLearn:
+
+	...
+	
+    # --- for AdaDelta ---
+    bp_param['adadelta_h1'] = 0
+    bp_param['adadelta_h2'] = 0
+    bp_param['adadelta_s1'] = 0
+    bp_param['adadelta_s2'] = 0
+    bp_param['adadelta_rho'] = 0.95
+    bp_param['adadelta_epsilon'] = 10 ** (-6)
+\end{lstlisting}
+
+bp\_param['adadelta\_h1'], bp\_param['adadelta\_h2'] はそれぞれ$W_1, W_2$用のパラメータ$W$、bp\_param['adadelta\_s1'], bp\_param['adadelta\_s2'] はそれぞれ$W_1, W_2$用のパラメータ$s$、bp\_param['rmsprop\_rho']、bp\_param['rmsprop\_epsilon'] はそれぞれテキストの$\rho, \epsilon$に対応したパラメータである。
+
+\subsubsection*{実行結果}
+
+活性化関数を ReLU、最適化手法を AdaDelta にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.95, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-4-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、AdaDelta は、RMSProp や AdaGrad の改良版であるとのことから、最適化手法を RMSProp、AdaGrad にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+
+\image{AdaGradとRMSPropの比較}{report_a4-4.png}{fig-A4-4-1}
+
+図\ref{fig-A4-4-1} の黄土色の線が最適化手法を AdaGrad にしたもの、濃い橙色の線が RMSProp にしたもの、緑色の線が AdaDelta にしたものである。図\ref{fig-A4-4-1} から AdaDelta の方が AdaGrad や RMSProp よりも学習が早く、さらに RMSProp よりもクロスエントロピー誤差の平均値の値の収束が早いことがわかる。
+
 \subsection*{A4-5: 最適化手法の改良...Adam}
+
+\subsubsection*{実装内容}
+my\_nn\_learn.py に新しく adam 関数を定義した。adam 関数の内容は以下のソースコード \ref{A4-5-1}の通りである。
+\begin{lstlisting}[caption="Adam",label=A4-5-1]
+def adam(nn, bp_data):
+    nn.bp_param['adam_t'] = nn.bp_param['adam_t'] + 1
+    beta1 = nn.bp_param['adam_beta1']
+    beta2 = nn.bp_param['adam_beta2']
+    nn.bp_param['adam_m1'] = beta1 * nn.bp_param['adam_m1'] + (1 - beta1) * bp_data['g_en_w1']
+    nn.bp_param['adam_m2'] = beta1 * nn.bp_param['adam_m2'] + (1 - beta1) * bp_data['g_en_w2']
+    nn.bp_param['adam_v1'] = beta2 * nn.bp_param['adam_v1'] + (1 - beta2) * bp_data['g_en_w1'] * bp_data['g_en_w1']
+    nn.bp_param['adam_v2'] = beta2 * nn.bp_param['adam_v2'] + (1 - beta2) * bp_data['g_en_w2'] * bp_data['g_en_w2']
+    m_hat1 = nn.bp_param['adam_m1'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    m_hat2 = nn.bp_param['adam_m2'] / (1 - beta1 ** nn.bp_param['adam_t'])
+    v_hat1 = nn.bp_param['adam_v1'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    v_hat2 = nn.bp_param['adam_v2'] / (1 - beta2 ** nn.bp_param['adam_t'])
+    nn.network['w1'] -= (nn.bp_param['adam_alpha'] * m_hat1) / (np.sqrt(v_hat1) + nn.bp_param['adam_epsilon'])
+    nn.network['w2'] -= (nn.bp_param['adam_alpha'] * m_hat2) / (np.sqrt(v_hat2) + nn.bp_param['adam_epsilon'])
+    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+\end{lstlisting}
+
+この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+
+また、クラス NNLearn 内にパラメータ $\rho, \epsilon$ の初期値を記入できるようにした。ソースコード\ref{A4-5-2}はパラメータ設定部のコードである。
+\begin{lstlisting}[caption="Adam のパラメータ設定部",label=A4-5-2]
+class NNLearn:
+
+	...
+	
+    # --- for Adam ---
+    bp_param['adam_t'] = 0
+    bp_param['adam_m1'] = 0
+    bp_param['adam_m2'] = 0
+    bp_param['adam_v1'] = 0
+    bp_param['adam_v2'] = 0
+    bp_param['adam_beta1'] = 0.9
+    bp_param['adam_beta2'] = 0.999
+    bp_param['adam_epsilon'] = 10 ** (-8)
+    bp_param['adam_alpha'] = 10 ** (-3)
+\end{lstlisting}
+
+\subsubsection*{実行結果}
+
+活性化関数を ReLU、最適化手法を Adam にして、バッチサイズ 100、パラメータの初期値を$\alpha = 0.001, \beta_1 = 0.9, \beta_2 = 0.999, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-5-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、Adam は、AdaDelta の改良版であるとのことから、AdaDelta との比較も行う。
+
+\begin{figure}[H]
+  \begin{center}
+    \begin{tabular}{c}
+      \begin{minipage}{0.5\hsize}
+        \begin{center}
+          \includegraphics[clip, width=10.0cm]{./report_a4-5-1.png}
+        \end{center}
+      \end{minipage}
+      \begin{minipage}{0.5\hsize}
+        \begin{center}
+          \includegraphics[clip, width=10.0cm]{./report_a4-5-2.png}
+        \end{center}
+      \end{minipage}
+    \end{tabular}
+    \caption{ Adam と AdaDelta の比較（左が Adam , 右が AdaDelta ）}
+    \label{fig-A4-5-1}
+  \end{center}
+\end{figure}
+
+図\ref{fig-A4-5-1} の左側が最適化手法を Adam にしたもの、右側が AdaDelta にしたものである。図\ref{fig-A4-5-1} から学習速度は大きな差が見られないこと、AdaDelta の方が学習後半でのクロスエントロピー誤差の振幅が小さいことがわかる。Adam は AdaDelta の改良版ではあるが、学習対象によっては必ずしも Adam が最も学習効率が良いわけではないと考えられる。
 
 \subsection*{A4 最適化手法の改良...比較}
 
-テスト用データを用いて、バッチサイズ100、テスト回数100にしてそれぞれの最適化手法でテストを行ったところ、認識精度は表\ref{tableA4} のようになった。\\
+学習用データで各最適化手法で 30 epoch 学習させた時の Accuracy をグラフ化したところ以下の図\ref{fig-A4-6-1}のようになった。図\ref{fig-A4-6-1} を見ると、RMSProp、AdaDelta、Adam の 3つの手法が学習が早く、それらに続いて Momentum SGD が学習が早かった。また、各最適化手法での最終的な Accuracy は表\ref{tableA4-6-1}のようになった。
+
+\begin{table}[H]
+\begin{center}
+\caption{学習データでの認識精度(最適化手法での比較)}
+  \begin{tabular}{|c|c|} \hline
+    最適化手法 & 認識精度  \\ \hline \hline
+    SGD & 91.783 \% \\ \hline
+    Momentum SGD & 97.250 \% \\ \hline
+    AdaGrad & 91.458 \% \\ \hline
+    RMSProp & 98.642 \% \\ \hline
+    AdaDelta & 98.675 \% \\ \hline
+    Adam & 98.592 \% \\ \hline
+  \end{tabular}
+	\label{tableA4-6-1}
+\end{center}
+\end{table}
+
+\image{最適化手法の比較(学習用データの Accuracy)}{report_a4-6-1.png}{fig-A4-6-1}
+
+次にテスト用データを用いて、バッチサイズ100、テスト回数100にして、発展課題A4 のそれぞれの最適化手法についてテストを行ったところ、認識精度は表\ref{tableA4-6-2} のようになった。
 
 \begin{table}[H]
 \begin{center}
 \caption{テストデータでの認識精度(最適化手法での比較)}
   \begin{tabular}{|c|c|} \hline
     最適化手法 & 認識精度  \\ \hline \hline
-    SGD & 94.773 \% \\ \hline
-    Momentum SGD & 97.930 \% \\ \hline
+    SGD & 95.12 \% \\ \hline
+    Momentum SGD & 98.10 \% \\ \hline
+    AdaGrad & 93.81 \% \\ \hline
+    RMSProp & 98.05 \% \\ \hline
+    AdaDelta & 98.29 \% \\ \hline
+    Adam & 98.28 \% \\ \hline
   \end{tabular}
-	\label{tableA4}
+	\label{tableA4-6-2}
 \end{center}
 \end{table}
+
+表\ref{tableA4-6-2}より、AdaGrad を除く全ての最適化手法において SGD よりも認識精度が高く、訓練用データに対して過学習せずに汎化性能が高められていると考えられる。
 
 \subsection*{A5: カラー画像への拡張}
 
@@ -375,5 +606,9 @@ class NNLearn:
 	\item 逆伝播後の最適化手法は Adam を採用
 	\item Adam のパラメータは $\alpha = 0.001, \beta_1 = 0.9, \beta_2 =  0.999, \epsilon = 10^{-8}$ に設定
 \end{itemize}
+
+学習方針としては、モノクロ画像と同じように、画像の左上から画素値を配列として扱っている。ただし今回はRGBの3チャンネルあるので、R の画素値 32 * 32 個、G の 画素値 32 * 32 個、B の画素値 32 * 32 個をこの順番で配列に 1列に格納して学習させる。
+
+\subsubsection*{実行結果}
 
 \end{document}

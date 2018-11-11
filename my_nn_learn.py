@@ -85,7 +85,7 @@ class Dropout:
 
     """
     # the rate of dropout
-    rho = 0.5
+    rho = 0.3
 
     def __init__(self, nn):
         """ Initialize Dropout Class """
@@ -170,7 +170,7 @@ class BatchNormalization:
                    d_en_var * np.sum(np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1)
         tmp = np.apply_along_axis(lambda l: 2 * d_en_var * (l - self.avg), axis=0, arr=f_data['a1'])
         d_en_xi = np.apply_along_axis(lambda l: l / np.sqrt(self.var + self.epsilon), axis=0, arr=d_en_xhati) + \
-                  np.apply_along_axis(lambda l: (l + d_en_mub) / nn.batch_size, axis=0, arr=tmp)
+                  np.apply_along_axis(lambda l: (l / nn.m) + (d_en_mub / nn.batch_size), axis=0, arr=tmp)
         d_en_gamma = np.sum(y * self.x_hat, axis=1)
         d_en_beta = np.sum(y, axis=1)
         self.gamma -= d_en_gamma
@@ -374,8 +374,8 @@ def adagrad(nn, bp_data):
     nn.bp_param['ag_h2'] = nn.bp_param['ag_h2'] + (bp_data['g_en_w2'] * bp_data['g_en_w2'])
     nn.network['w1'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h1'])) * bp_data['g_en_w1']
     nn.network['w2'] -= (nn.bp_param['lr'] / np.sqrt(nn.bp_param['ag_h2'])) * bp_data['g_en_w2']
-    nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
-    nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
+    nn.network['b1'] -= nn.bp_param['lr'] * bp_data['g_en_b1']
+    nn.network['b2'] -= nn.bp_param['lr'] * bp_data['g_en_b2']
 
 
 def rms_prop(nn, bp_data):
@@ -652,22 +652,25 @@ def main():
             plt.xlabel("itr")
             plt.ylabel("entropy")
             plt.show()
-
             # print accuracy
-            res = np.argmax(forward_data['y'], axis=0)
-            diff = res - t_label
-            correct += np.sum(diff == 0)
-            incorrect += np.sum(diff != 0)
-            accuracy = correct / (correct + incorrect)
-            epoch += 1
-            iteration_train = np.append(iteration_train, epoch)
-            accuracy_train = np.append(accuracy_train, accuracy)
             plt.plot(iteration_train, accuracy_train)
             plt.title("accuracy for train data")
             plt.grid(True)
             plt.xlabel("epoch")
             plt.ylabel("accuracy")
             plt.show()
+
+        q_epoch = nn.per_epoch // 4
+        if (itr % nn.per_epoch) % q_epoch == 0:
+            # plot accuracy
+            res = np.argmax(forward_data['y'], axis=0)
+            diff = res - t_label
+            correct += np.sum(diff == 0)
+            incorrect += np.sum(diff != 0)
+            accuracy = correct / (correct + incorrect)
+            epoch += 0.25
+            iteration_train = np.append(iteration_train, epoch)
+            accuracy_train = np.append(accuracy_train, accuracy)
 
     # save parameters
     print("パラメータを保存するファイルの名前を ***.npz の形式で入力してください")
@@ -681,14 +684,15 @@ def main():
         bn_gamma = nn.network['batch_n_class'].gamma
         bn_eps = nn.network['batch_n_class'].epsilon
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss, exp_avg=avg_exp, exp_var=var_exp, beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train, exp_avg=avg_exp, exp_var=var_exp,
+                 beta=bn_beta, gamma=bn_gamma, eps=bn_eps)
 
     elif nn.mode['mid_act_fun'] == 2:
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss, rho=forward_data['dropout_class'].rho)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train, rho=forward_data['dropout_class'].rho)
     else:
         np.savez(filename, w1=nn.network['w1'], w2=nn.network['w2'], b1=nn.network['b1'], b2=nn.network['b2'],
-                 loss=loss)
+                 loss=loss, t_acc_itr=iteration_train, t_acc=accuracy_train)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ class NNColorTest:
     batch_size = 1
     per_epoch = 10000 // batch_size
     epoch = 100
+    testtime = 100
     p = ProgressBar()
     f = "./test_batch"
     with open(f, 'rb') as fo:
@@ -269,26 +270,6 @@ def forward(nn, input_img):
 
 def main():
     nn = NNColorTest()
-    err_time = 0
-    while True:
-        if err_time >= 3:
-            print("Process finished...")
-            sys.exit(0)
-
-        try:
-            print("input a number from 0 to 9999.")
-            idx = int(sys.stdin.readline(), 10)
-
-            if 0 <= idx < 10000:
-                break
-            else:
-                err_time = err_time + 1
-                print("Error: invalid input")
-
-        except Exception as e:
-            err_time = err_time + 1
-            print(e)
-
     # load parameter
     err_time = 0
     while True:
@@ -318,36 +299,41 @@ def main():
             nn.network['b2'] = load_param['b2']
             break
 
-    # forwarding
-    forward_data = forward(nn, nn.data_x[idx])
-    y = np.argmax(forward_data['y'], axis=0)
-
-    # -- for showing images --
-    plt.imshow(nn.data_x[idx].transpose((1, 2, 0)))
-    print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.data_y[idx]))
-    plt.show()
-
-    #"""
     correct = 0
     incorrect = 0
-    for idx in range(10000):
-        forward_data = forward(nn, nn.data_x[idx])
-        print(idx)
-        y = np.argmax(forward_data['y'], axis=0)
-        if int(nn.data_y[idx]) == int(y):
-            correct = correct + 1
-        else:
-            incorrect = incorrect + 1
-            print("{0}: Recognition result -> {1} \n Correct answer -> {2}".format(idx, y, nn.data_y[idx]))
+    iteration_test = []
+    accuracy_test = []
+    nums = list(range(0, nn.data_x.size // nn.d))
+
+    for itr in range(nn.testtime):
+        # init
+        input_img = np.array([], dtype='int32')
+        t_label = np.array([], dtype='int32')
+
+        # select from training data
+        choice_nums = np.random.choice(nums, nn.batch_size, replace=False)
+
+        # data input
+        for i in range(nn.batch_size):
+            tmp_img = nn.data_x[choice_nums[i]]
+            input_img = np.append(input_img, tmp_img)
+            t_label = np.append(t_label, nn.data_y[choice_nums[i]])
+
+        nn.network['t_label'] = t_label
+        nn.network['t_label_one_hot'] = one_hot_vector(t_label, nn.c)
+
+        # forwarding
+        forward_data = forward(nn, input_img)
+        res = np.argmax(forward_data['y'], axis=0)
+        diff = res - t_label
+        correct += np.sum(diff == 0)
+        incorrect += np.sum(diff != 0)
+        accuracy = correct / (correct + incorrect)
+        iteration_test = np.append(iteration_test, itr + 1)
+        accuracy_test = np.append(accuracy_test, accuracy)
 
     accuracy = correct * 1.0 / (correct + incorrect)
     print("accuracy -> {0}".format(accuracy))
-
-    # -- for showing images --
-    plt.imshow(nn.data_x[idx].transpose((1, 2, 0)))
-    #print("Recognition result -> {0} \n Correct answer -> {1}".format(y, nn.Y[idx]))
-    plt.show()
-    #"""
 
 
 if __name__ == "__main__":

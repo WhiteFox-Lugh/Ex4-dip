@@ -291,12 +291,12 @@ def main():
                 nn.network['gamma'] = load_param['gamma']
                 nn.network['eps'] = load_param['eps']
 
-            print("テスト回数を入力してください(1~1000).")
+            print("テスト回数を入力してください(1~100).")
             print("バッチサイズは {0}, テストデータ数は {1} です.".format(nn.batch_size, nn.X.size // nn.d))
             print("テスト回数 1 の場合は、課題4 の仕様の通り画像 1 枚を入力として識別を行います")
             testtime = int(sys.stdin.readline(), 10)
 
-            if not (1 <= testtime <= 1000):
+            if not (1 <= testtime <= 100):
                 raise Exception("不正な入力です")
 
         except Exception as e:

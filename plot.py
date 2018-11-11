@@ -50,7 +50,6 @@ def main():
                 plt.grid(True)
                 plt.xlabel("itr")
                 plt.ylabel("error avg")
-                plt.ylim(0.0, 0.3)
 
             elif mode == 1:
                 # plot accuracy

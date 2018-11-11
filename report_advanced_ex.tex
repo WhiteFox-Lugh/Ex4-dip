@@ -207,7 +207,7 @@ def relu_backward(t):
 
 順伝播で $t > 0$ となっている要素に対しては1, それ以外に対しては 0 を返す実装になっている。\\
 
-必須課題においては中間層の活性化関数にシグモイド関数を用いていたが、この活性化関数を ReLU 関数に置き換えられるように my\_nn\_learn.py を実行した時に選択できるようにした。また、逆伝播についても、順伝播でReLUを用いた時は、ReLU 関数の微分に置き換えられる。ReLUの逆伝搬を行っている部分は、my\_nn\_learn.py の 540 行目にあたり、以下のソースコード \ref{A1-3} のようになっている。
+必須課題においては中間層の活性化関数にシグモイド関数を用いていたが、この活性化関数を ReLU 関数に置き換えられるように my\_nn\_learn.py を実行した時に選択できるようにした。また、逆伝播についても、順伝播でReLUを用いた時は、ReLU 関数の微分に置き換えられる。ReLUの逆伝播を行っている部分は、my\_nn\_learn.py の 540 行目にあたり、以下のソースコード \ref{A1-3} のようになっている。
 
 \begin{lstlisting}[caption="ReLU の逆伝播 を行う部分",label=A1-3]
 bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * relu_backward(data['a1'])
@@ -221,7 +221,7 @@ bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * rel
 
 図 \ref{fig-A-1-1} の青い線がシグモイド関数を用いた時のクロスエントロピー誤差の平均値の値、橙色の線がReLU関数を用いた時の値である。図 \ref{fig-A-1-1} からReLU関数を用いた時も正しく学習が進んでいることと、シグモイド関数を用いた時よりも学習が早く、また学習用データに対しての認識精度もシグモイド関数を用いた時より上がっていることがわかる。
 
-また、テストデータを用いて、param\_sigmoid\_sgd\_30.npz、param\_relu\_sgd\_30.npz のそれぞれに対して1000回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
+また、テストデータを用いて、param\_sigmoid\_sgd\_30.npz、param\_relu\_sgd\_30.npz のそれぞれに対して100回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
 
 \begin{table}[H]
 \begin{center}
@@ -229,7 +229,7 @@ bp_data['g_activate_mid'] = np.dot(nn.network['w2'].T, bp_data['g_en_ak']) * rel
   \begin{tabular}{|c|c|} \hline
     活性化関数 & 認識精度  \\ \hline \hline
     シグモイド & 91.052 \%  \\ \hline
-    ReLU & 94.773 \% \\ \hline
+    ReLU & 95.12 \% \\ \hline
   \end{tabular}
 	\label{table-A1-1}
 \end{center}
@@ -279,41 +279,207 @@ class Dropout:
         return self.mask
 \end{lstlisting}
 
-ソースコード \ref{A2-1} の10行目の rho はパラメータであり、順伝播で無視するノードの割合（$ 0 < \rho < 1$)である。変数 nn.m は NNLearn クラスの変数で、中間層のノード数を表しており、nn.batch\_size はバッチサイズを表している。変数  dropout\_num は中間層のノード 0番〜 (nn.m)-1 番のうち伝搬しないノードの番号の値を格納しており、mask は順伝播、逆伝播で用いるマスクであり、(nn.m) 行 
- (nn.batch\_size) 列の行列で、中間層において伝播しないノードの行は全て0、他は1となっている。順伝播の時はこのマスクとaffine レイヤーからの入力のアダマール積を取ることによって活性化レイヤーに信号を伝播するかしないかを決定しており、逆伝播のときはこのマスク自体を微分した値として伝える。\\
+ソースコード \ref{A2-1} の10行目の rho はパラメータであり、順伝播で無視するノードの割合（$ 0 < \rho < 1$)である。変数 nn.m は NNLearn クラスの変数で、中間層のノード数を表しており、nn.batch\_size はバッチサイズを表している。変数  dropout\_num は中間層のノード 0番〜 (nn.m)-1 番のうち伝搬しないノードの番号の値を格納している。mask は順伝播、逆伝播で用いるマスクであり、(nn.m) 行 
+ (nn.batch\_size) 列の行列で、中間層において伝播しないノードの行は全て0、他は1となっている。順伝播の時はこのマスクと affine レイヤーからの入力のアダマール積を取ることによって活性化レイヤーに信号を伝播するかしないかを決定しており、逆伝播のときはこのマスク自体を微分した値として伝える。\\
  
  テスト時には、my\_nn\_test.py の221 行目にあるように、全てのノードを伝播するかわりに $1-\rho$ をかけている。
  
  \subsubsection*{実行結果}
  
-バッチサイズ $100$、学習係数 $0.01$、エポック数 $30$ 、最適化手法をSGDにし、活性化関数をReLU関数にしたもの（ファイル名: param\_relu\_sgd\_30.npz ）とDropout に設定したもの（ファイル名: param\_dropout\_sgd\_30.npz ）をそれぞれ学習させた。なおDropout において、無視するノードの割合であるパラメータ$\rho$は$\rho = 0.5$とした。横軸に学習回数、縦軸にクロスエントロピー誤差の平均値をとったグラフを作成したところ、以下の図 \ref{fig-A-2-1} のようになった。
+バッチサイズ $100$、学習係数 $0.01$、エポック数 $30$ 、最適化手法をSGDにし、活性化関数をReLU関数にしたもの（ファイル名: param\_relu\_sgd\_30.npz ）とDropout に設定したもの（ファイル名: param\_dropout\_sgd\_30.npz ）をそれぞれ学習させた。なおDropout において、無視するノードの割合であるパラメータ$\rho$は$\rho = 0.3$とした。横軸にエポック数、縦軸に認識精度 (Accuracy) をとったグラフを作成したところ、以下の図 \ref{fig-A-2-1} のようになった。
 
 \image{ReLU関数とDropout の比較}{report_a2-1.png}{fig-A-2-1}
 
-図 \ref{fig-A-2-1} の青い線がReLU関数を用いた時のクロスエントロピー誤差の平均値の値、橙色の線がDropoutを用いた時の値である。図 \ref{fig-A-2-1} から
+図 \ref{fig-A-2-1} の青い線がReLU関数を用いた時の Accuracy 、橙色の線がDropoutを用いた時の値である。図 \ref{fig-A-2-1} から Dropout を用いた時の方が訓練データに対しての認識精度が落ちていることがわかる。
 
-また、テストデータを用いて、param\_relu\_sgd\_30.npz、param\_dropout\_sgd\_30.npz のそれぞれに対して1000回テストを行ったところ認識精度は以下の表 \ref{table-A1-1} のようになった。
+また、テストデータを用いて、param\_relu\_sgd\_30.npz、param\_dropout\_sgd\_30.npz のそれぞれに対して100回テストを行ったところ認識精度は以下の表 \ref{table-A2-1} のようになった。
 
 \begin{table}[H]
 \begin{center}
-\caption{テストデータでの認識精度(ReLU と Dropout の比較)}
-  \begin{tabular}{|c|c|} \hline
-    活性化関数 & 認識精度  \\ \hline \hline
-    ReLU & 94.773 \% \\ \hline
-    Dropout & 91.77 \% \\ \hline
+\caption{認識精度(ReLU と Dropout の比較)}
+  \begin{tabular}{|c|c|c|c|} \hline
+    活性化関数 & 認識精度（訓練データ） & 認識精度（テストデータ）& 差  \\ \hline \hline
+    ReLU & 91.783 \% & 95.12 \% & 3.337 \% \\ \hline
+    Dropout & 88.692 \% & 91.88 \% &  3.188 \% \\ \hline
   \end{tabular}
-	\label{table-A1-1}
+	\label{table-A2-1}
 \end{center}
 \end{table}
 
-表 \ref{table-A1-1} から、ReLU関数の方がシグモイド関数を用いるより認識精度が高く、汎化性能が高いことがわかる。
-
-% Dropout まだレポート部分は完成してないよ！！
+表 \ref{table-A2-1} から、Dropout の方が訓練データとテストデータの間の認識精度の差がわずかに小さいが、大きな差はみられなかった。
+ネットワーク自体の層が深くはないため、結果にあまり差が出なかったと考えられる。
  
+ \subsection*{A3: Batch Normalization}
+ 
+ \subsubsection*{実装内容}
+ 
+ 学習用のファイル my\_nn\_learn.py とテスト用のファイル my\_nn\_test.py に BatchNormalization というクラスを作成した。\\
+ 
+ はじめに、学習用のファイル my\_nn\_learn.py の実装内容について説明する。
+ 
+ パラメータやクラス変数の初期化部分は以下のソースコード \ref{A3-1} のようになっている。
+ \begin{lstlisting}[caption="Batch Normalization (学習用: 初期化)",label=A3-1]
+ class BatchNormalization:
+
+...
+
+    def __init__(self, nn: NNLearn):
+        """ Initialize BatchNormalization class """
+        self.gamma = 1
+        self.beta = 0
+        self.x_hat = 0
+        self.avg = np.zeros((nn.batch_size, 1))
+        self.var = np.zeros((nn.batch_size, 1))
+        self.avg_sum = np.zeros(nn.m)
+        self.var_sum = np.zeros(nn.m)
+        self.epsilon = 10 ** (-8)
+\end{lstlisting}
+
+パラメータ gamma, beta は電子テキストのそれぞれ $\gamma, \beta$ に対応している。また、x\_hat, avg, var, epsilon はそれぞれ$\hat{x}, \mu_B, \sigma_B^2, \epsilon$に対応しており、avg\_sum, var\_sum は、それぞれテスト用ファイルで用いる $\mu$の期待値、$\sigma^2$の期待値である。\\
+
+次に、学習用ファイルの順伝播部分の実装について説明する。順伝播の実装内容は以下のソースコード \ref{A3-2}の通りである。また、Batch Normalization の順伝播の計算式も以下に示す。
+
+\begin{eqnarray}
+\label{bn1-1}
+	\mu_B & \leftarrow & \frac{1}{B} \sum_{i=1}^{B}{x_i} \\
+\label{bn1-2}
+	\sigma_B^2 & \leftarrow & \frac{1}{B} \sum_{i=1}^{B}{(x_i - \mu_B)^2} \\
+\label{bn1-3}
+	\hat{x_i} & \leftarrow &  \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}\\
+\label{bn1-4}
+	y_i & \leftarrow & \gamma \hat{x_i} + \beta 
+\end{eqnarray}
+
+
+\begin{lstlisting}[caption="Batch Normalization (学習用: 順伝播)",label=A3-2]
+    def forward(self, x: ndarray):
+        """ forwarding in Batch normalization """
+        self.avg = np.apply_along_axis(np.average, axis=1, arr=x)
+        self.avg_sum += self.avg
+        self.var = np.apply_along_axis(np.var, axis=1, arr=x)
+        self.var_sum += self.var
+        self.x_hat = np.apply_along_axis(self.f_normalize, axis=0, arr=x)
+        tmp_r = np.apply_along_axis(self.mult_and_move, axis=0, arr=self.x_hat)
+        return tmp_r
+
+    def f_normalize(self, t: ndarray):
+        """ normalize the array """
+        return (t - self.avg) / np.sqrt(self.var + self.epsilon)
+
+    def mult_and_move(self, t: ndarray):
+        """ multiplication and movement """
+        return self.gamma * t + self.beta
+\end{lstlisting}
+
+ソースコード\ref{A3-2}の3行目が式(\ref{bn1-1})、5行目が式(\ref{bn1-2})、7行目が式(\ref{bn1-3})、8行目が式(\ref{bn1-4})に対応している。ソースコード\ref{A3-2}の7行目では$\hat{x_i}$ の正規化を行なっており、この際に 11〜13行目の f\_normalize 関数を用いている。また、ソースコード\ref{A3-2} の8行目で $y_i$ を求めているが、この際に15〜17行目の mult\_and\_move 関数を用いている。\\
+
+次に、学習用ファイルの逆伝播の部分について説明する。逆伝播の実装内容は以下のソースコード \ref{A3-3}の通りである。また、Batch Normalization の逆伝播の計算式も以下に示す。
+
+\begin{eqnarray}
+\label{bn2-1}
+	\frac{\partial E_n}{\partial \hat{x_i}} & = & \frac{\partial E_n}{\partial \hat{y_i}} \cdot \gamma \\
+\label{bn2-2}
+	\frac{\partial E_n}{\partial \sigma_B^2} & = & \sum_{i=1}^{B}{\frac{\partial E_n}{\partial \hat{x_i}}} \cdot (\hat{x_i} - \mu_B) \cdot \frac{-1}{2}(\sigma_B^2 + \epsilon)^{\frac{-3}{2}} \\
+\label{bn2-3}
+	\frac{\partial E_n}{\partial \mu_B} & = & (\sum_{i=1}^{B}{\frac{\partial E_n}{\partial \hat{x_i}} 
+	\cdot \frac{-1}{\sqrt{\sigma_B^2 + \epsilon}}) + \frac{\partial E_n}{\partial \sigma_B^2}} \cdot \frac{-2}{B} \sum_{i=1}^{B}{(x_i - \mu_B)} \\
+\label{bn2-4}
+	\frac{\partial E_n}{\partial x_i} & = & \frac{\partial E_n}{\partial \hat{x_i}} \cdot \frac{1}{\sqrt{\sigma_B^2 + \epsilon}} + \frac{\partial E_n}{\partial \sigma_B^2} \cdot \frac{2(x_i -\mu_B)}{m} + \frac{\partial E_n}{\partial \mu_B} \cdot \frac{1}{B} \\
+\label{bn2-5}
+	\frac{\partial E_n}{\partial \gamma} & = & \sum_{i=1}^{B}{\frac{\partial E_n}{\partial y_i} \cdot \hat{x_i}} \\
+\label{bn2-6}
+	\frac{\partial E_n}{\partial \beta} & = & \sum_{i=1}^{B}{\frac{\partial E_n}{\partial y_i}}
+\end{eqnarray}
+
+\begin{lstlisting}[caption="Batch Normalization (学習用: 逆伝播)",label=A3-3]
+def backward(self, y: ndarray, nn: NNLearn, f_data: dict):
+    """ back propagation in Batch normalization """
+    d_en_xhati = np.apply_along_axis(lambda l: l * self.gamma, axis=0, arr=y)
+    d_en_var = np.sum(d_en_xhati * np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1) \
+               / (-2 * (self.var + self.epsilon) ** (3 / 2))
+    d_en_mub = np.sum(d_en_xhati, axis=1) / -np.sqrt(self.var + self.epsilon) + (-2 / nn.batch_size) * \
+               d_en_var * np.sum(np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1)
+    tmp = np.apply_along_axis(lambda l: 2 * d_en_var * (l - self.avg), axis=0, arr=f_data['a1'])
+    d_en_xi = np.apply_along_axis(lambda l: l / np.sqrt(self.var + self.epsilon), axis=0, arr=d_en_xhati) + \
+              np.apply_along_axis(lambda l: (l / nn.m) + (d_en_mub / nn.batch_size), axis=0, arr=tmp)
+    d_en_gamma = np.sum(y * self.x_hat, axis=1)
+    d_en_beta = np.sum(y, axis=1)
+    self.gamma -= d_en_gamma
+    self.beta -= d_en_beta
+    return d_en_xi
+\end{lstlisting}
+
+ソースコード\ref{A3-3} の3行目が式 (\ref{bn2-1}) 、4,5 行目が式 (\ref{bn2-2}) 、6,7行目が式(\ref{bn2-3})、8〜10行目が式(\ref{bn2-4})、11行目が式(\ref{bn2-5})、12 行目が式(\ref{bn2-6}) に対応している。また 13 行目では $\gamma$, 14行目では $\beta $を更新している。なお、重み$W$とバイアス$b$については、SGDの部分で更新しているため、ここでは更新していない。\\
+
+
+最後に、テスト用ファイル my\_nn\_test.py でのBatch Normalization の順伝播について説明する。
+テスト用ファイルでは、$mu_B$の期待値$E[x_i]$と$\sigma_B^2$の期待値$Var[x_i]$を用いて、入力 $x_i$ に対して出力 $y_i$ を
+\begin{eqnarray}
+	\label{bn3-1}
+	y_i \leftarrow \frac{\gamma}{\sqrt{Var{x_i] + \epsilon}}} \cdot x_i + (\beta - \frac{\gamma E[x_i]}{\sqrt{Var[x_i] + \epsilon}})
+\end{eqnarray}
+
+によって計算する。これを実装した部分が以下のソースコード \ref{A3-4}の関数 f\_bn\_test である。この関数は、forward 関数の途中で呼び出される。
+\begin{lstlisting}[caption="Batch Normalization (テスト用: 順伝播)",label=A3-4]
+def f_bn_test(nn, t):
+...
+    def trans_y(t):
+	...
+        return (nn.network['gamma'] / np.sqrt(nn.network['exp_var'] + nn.network['eps'])) * t +\
+               (nn.network['beta'] - (nn.network['gamma'] * nn.network['exp_avg']) /
+                np.sqrt(nn.network['exp_var'] + nn.network['eps']))
+
+    r = np.apply_along_axis(trans_y, axis=0, arr=t)
+    return r
+    
+...
+
+def forward(nn, input_img):
+    """ Forwarding
+
+    Args:
+...
+
+    # apply Batch normalization
+    if nn.network['mode'] == 3:
+        a_mid_normalize = f_bn_test(nn, a_mid_layer)
+        z_mid_layer = mid_layer_activation(nn.network['mode'], a_mid_normalize)
+\end{lstlisting}
+
+ \subsubsection*{実行結果}
+ 
+ 中間層の活性化関数をReLU、最適化手法をSGD、バッチサイズ100、中間層のノード数を200、エポック数を30を共通の設定とし、中間層のアフィン変換の直後にBatch Normalization を行うネットワーク(パラメータファイル名は param\_bn\_sgd\_30.npz)とBatch Normalization を行わないネットワーク(パラメータのファイル名は param\_relu\_sgd\_30.npz)の2つを用意し、比較を行なった。\\
+ 
+ 順伝播での学習の経過を、横軸にエポック数、縦軸に認識精度 (Accuracy) をとったグラフを作成し比較したところ、以下の図 \ref{fig-A-3-1} のようになった。また、テストデータにおいて、テスト回数を100として認識精度を比較したところ以下の表\ref{tableA3-1} のようになった。
+ 
+ \image{学習経過(Batch Normalization の有無での比較)}{report_a3-1.png}{fig-A-3-1}
+ 
+\begin{table}[H]
+\begin{center}
+\caption{認識精度(Batch Normalization の有無)}
+  \begin{tabular}{|c|c|c|c|} \hline
+    手法 & テストデータ & 訓練データ & 差 \\ \hline \hline
+   Batch Normalization なし(ReLU \& SGD) & 95.12 \% & 91.78 \% & 3.34 \%\\ \hline
+   Batch Normalization あり(ReLU \& SGD) & 95.64 \% & 95.975 \% & 0.335 \%\\ \hline
+  \end{tabular}
+	\label{tableA3-1}
+\end{center}
+\end{table}
+
+図\ref{fig-A-3-1} の青色の線がBatch Normalization を行わない学習、橙色の線が Batch Normalization を行なった学習である。この図から、Batch Normalization を行なった学習の方が学習が早いことがわかる。また、表\ref{tableA3-1} を見ると、Batch Normalization を行なった場合の方がテストデータと訓練データの認識精度の差が小さくなっており、汎化性能が高くなっていることがわかる。
+
 \subsection*{A4-1: 最適化手法の改良...Momentum SGD}
 
 \subsubsection*{実装内容}
-my\_nn\_learn.py に新しく momentum\_sgd 関数を定義した。momentum\_sgd 関数の内容は以下のソースコード \ref{A4-1-1}の通りである。
+my\_nn\_learn.py に新しく momentum\_sgd 関数を定義した。momentum\_sgd 関数の内容は以下のソースコード \ref{A4-1-1}の通りである。この関数は、誤差逆伝播法で得た各層での勾配を格納したディクショナリ bp\_data を引数にとる。また、Momentum SGD の計算式も示す。
+
+\begin{eqnarray}
+\label{msgd1}
+	\Delta W & \leftarrow & \alpha \Delta W - \eta \frac{\partial E_n}{\partial W}\\
+\label{msgd2}
+	W & \leftarrow & W + \Delta W
+\end{eqnarray}
+
 \begin{lstlisting}[caption="Momentum SGD",label=A4-1-1]
 def momentum_sgd(nn, bp_data):
     nn.bp_param['msgd_w1'] = (nn.alpha * nn.bp_param['msgd_w1']) - (nn.eta * bp_data['g_en_w1'])
@@ -323,6 +489,8 @@ def momentum_sgd(nn, bp_data):
     nn.network['b1'] -= nn.eta * bp_data['g_en_b1']
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 \end{lstlisting}
+
+ソースコード\ref{A4-1-1} の2,3行目が式 (\ref{msgd1}) 、4,5 行目が式 (\ref{msgd2}) に対応している。また 6,7 行目はバイアスの更新である。
 
 この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
 
@@ -340,7 +508,7 @@ class NNLearn:
 \end{lstlisting}
 \subsubsection*{実行結果}
 
-活性化関数を ReLU、最適化手法を Momentum SGD にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \alpha = 0.9$ に設定して 30 エポック学習させた。図 \ref{fig-A4-1-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+活性化関数を ReLU、最適化手法を Momentum SGD にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \alpha = 0.9$ に設定して 30 エポック学習させた(パラメータファイル名は param\_relu\_momentumsgd\_30.npz)。図 \ref{fig-A4-1-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時(パラメータファイル名は param\_relu\_sgd\_30.npz)のクロスエントロピー誤差の平均値もプロットしてある。
 
 \image{SGDとMomentum SGDの比較}{report_a4-1.png}{fig-A4-1-1}
 
@@ -349,7 +517,14 @@ class NNLearn:
 \subsection*{A4-2: 最適化手法の改良...AdaGrad}
 
 \subsubsection*{実装内容}
-my\_nn\_learn.py に新しく adagrad 関数を定義した。adagrad 関数の内容は以下のソースコード \ref{A4-2-1}の通りである。
+my\_nn\_learn.py に新しく adagrad 関数を定義した。adagrad 関数の内容は以下のソースコード \ref{A4-2-1}の通りである。また、AdaGrad の計算式も示す。
+ \begin{eqnarray}
+ \label{adagrad1}
+ h & \leftarrow & h + \frac{\partial E_n}{\partial W} \circ \frac{\partial E_n}{\partial W} \\
+ \label{adagrad2}
+ W & \leftarrow & W - \eta \frac{1}{\sqrt{h}} \frac{\partial E_n}{\partial W}
+ \end{eqnarray}
+ 
 \begin{lstlisting}[caption="AdaGrad",label=A4-2-1]
 def adagrad(nn, bp_data):
     nn.bp_param['ag_h1'] = nn.bp_param['ag_h1'] + (bp_data['g_en_w1'] * bp_data['g_en_w1'])
@@ -360,7 +535,9 @@ def adagrad(nn, bp_data):
     nn.network['b2'] -= nn.bp_param['lr'] * bp_data['g_en_b2']
 \end{lstlisting}
 
-この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+ソースコード\ref{A4-2-1} の2,3行目が式 (\ref{adagrad1}) 、4,5 行目が式 (\ref{adagrad2}) に対応している。また 6,7 行目はバイアスの更新である。
+
+この関数を、誤差逆伝播法の勾配計算の後に適用した。
 
 また、クラス NNLearn 内にパラメータ $\eta, h$ の初期値を記入できるようにした。ソースコード\ref{A4-2-2}はパラメータ設定部のコードである。
 \begin{lstlisting}[caption="AdaGrad のパラメータ設定部",label=A4-2-2]
@@ -378,7 +555,7 @@ bp\_param['ag\_h1'], bp\_param['ag\_h2'] はそれぞれ$W_1, W_2$用のパラ�
 
 \subsubsection*{実行結果}
 
-活性化関数を ReLU、最適化手法を AdaGrad にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.001, h = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-2-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+活性化関数を ReLU、最適化手法を AdaGrad にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.001, h = 10^{-8}$ に設定して 30 エポック学習させた(パラメータファイル名は param\_relu\_adagrad\_30.npz)。図 \ref{fig-A4-2-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、比較用に、最適化手法を SGD にしてその他の条件を同じにして学習させた時(パラメータファイル名は param\_relu\_sgd\_30.npz)のクロスエントロピー誤差の平均値もプロットしてある。
 
 \image{SGDとMomentum SGDの比較}{report_a4-2.png}{fig-A4-2-1}
 
@@ -387,10 +564,16 @@ bp\_param['ag\_h1'], bp\_param['ag\_h2'] はそれぞれ$W_1, W_2$用のパラ�
 \subsection*{A4-3: 最適化手法の改良...RMSProp}
 
 \subsubsection*{実装内容}
-my\_nn\_learn.py に新しく rms\_prop 関数を定義した。rms\_prop 関数の内容は以下のソースコード \ref{A4-3-1}の通りである。
+my\_nn\_learn.py に新しく rms\_prop 関数を定義した。rms\_prop 関数の内容は以下のソースコード \ref{A4-3-1}の通りである。また RMSProp の計算式も示す。ソースコード中の\textbackslash は、コードが横に長くなったために挿入した改行を表している。
+
+ \begin{eqnarray}
+  \label{rmsprop1}
+ h & \leftarrow & \rho h + (1-\rho)\frac{\partial E_n}{\partial W} \circ \frac{\partial E_n}{\partial W} \\
+ \label{rmsprop2}
+ W & \leftarrow & W - \eta \frac{1}{\sqrt{h} + \epsilon} \frac{\partial E_n}{\partial W}
+ \end{eqnarray}
 \begin{lstlisting}[caption="RMSProp",label=A4-3-1]
 def rms_prop(nn, bp_data):
-
     rho = nn.bp_param['rmsprop_rho']
     epsilon = nn.bp_param['rmsprop_epsilon']
     nn.bp_param['rmsprop_h1'] = rho * nn.bp_param['rmsprop_h1'] +\
@@ -403,7 +586,8 @@ def rms_prop(nn, bp_data):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 \end{lstlisting}
 
-この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+ソースコード\ref{A4-3-1} の4〜7行目が式 (\ref{rmsprop1}) 、8,9 行目が式 (\ref{rmsprop2}) に対応している。また 10,11行目はバイアスの更新である。
+この関数を、誤差逆伝播法の勾配計算の後に適用した。
 
 また、クラス NNLearn 内にパラメータ $\eta, h$ の初期値を記入できるようにした。ソースコード\ref{A4-3-2}はパラメータ設定部のコードである。
 \begin{lstlisting}[caption="RMSProp のパラメータ設定部",label=A4-3-2]
@@ -422,7 +606,7 @@ bp\_param['rmsprop\_h1'], bp\_param['rmsprop\_h2'] はそれぞれ$W_1, W_2$用�
 
 \subsubsection*{実行結果}
 
-活性化関数を ReLU、最適化手法を RMSProp にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.9, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-3-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、RMSProp は AdaGrad の改良版であるとのことから、最適化手法を AdaGrad にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+活性化関数を ReLU、最適化手法を RMSProp にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.9, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた(パラメータファイル名は param\_relu\_rmsprop\_30.npz)。図 \ref{fig-A4-3-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、RMSProp は AdaGrad の改良版であるとのことから、最適化手法を AdaGrad 、その他の条件を同じにして学習させた時(パラメータファイル名は param\_relu\_sgd\_30.npz)のクロスエントロピー誤差の平均値もプロットしてある。
 
 \image{AdaGradとRMSPropの比較}{report_a4-3.png}{fig-A4-3-1}
 
@@ -431,7 +615,19 @@ bp\_param['rmsprop\_h1'], bp\_param['rmsprop\_h2'] はそれぞれ$W_1, W_2$用�
 \subsection*{A4-4: 最適化手法の改良...AdaDelta}
 
 \subsubsection*{実装内容}
-my\_nn\_learn.py に新しく ada\_delta 関数を定義した。ada\_delta 関数の内容は以下のソースコード \ref{A4-4-1}の通りである。
+my\_nn\_learn.py に新しく ada\_delta 関数を定義した。ada\_delta 関数の内容は以下のソースコード \ref{A4-4-1}の通りである。また、AdaDelta の計算式も示しておく。
+
+\begin{eqnarray}
+  \label{adadelta1}
+ h & \leftarrow & \rho h + (1-\rho)\frac{\partial E_n}{\partial W} \circ \frac{\partial E_n}{\partial W} \\
+ \label{adadelta2}
+ \Delta W & \leftarrow & - \frac{\sqrt{s + \epsilon}}{\sqrt{h + \epsilon}} \frac{\partial E_n}{\partial W} \\
+  \label{adadelta3}
+ s & \leftarrow & \rho s + (1-\rho) \Delta W \circ \Delta W \\
+ \label{adadelta4}
+ W & \leftarrow & W + \Delta W
+\end{eqnarray}
+
 \begin{lstlisting}[caption="AdaDelta",label=A4-4-1]
 def ada_delta(nn, bp_data):
     rho = nn.bp_param['adadelta_rho']
@@ -455,7 +651,8 @@ def ada_delta(nn, bp_data):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 \end{lstlisting}
 
-この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+ソースコード\ref{A4-4-1} の3〜6行目が式 (\ref{adadelta1}) 、7〜12 行目が式 (\ref{adadelta2}) 、13〜16行目が式(\ref{adadelta3})、17,18行目が式(\ref{adadelta4}) に対応している。また 19,20行目はバイアスの更新である。
+この関数を、誤差逆伝播法の勾配計算の後に適用した。
 
 また、クラス NNLearn 内にパラメータ $\rho, \epsilon$ の初期値を記入できるようにした。ソースコード\ref{A4-4-2}はパラメータ設定部のコードである。
 \begin{lstlisting}[caption="AdaDelta のパラメータ設定部",label=A4-4-2]
@@ -472,11 +669,11 @@ class NNLearn:
     bp_param['adadelta_epsilon'] = 10 ** (-6)
 \end{lstlisting}
 
-bp\_param['adadelta\_h1'], bp\_param['adadelta\_h2'] はそれぞれ$W_1, W_2$用のパラメータ$W$、bp\_param['adadelta\_s1'], bp\_param['adadelta\_s2'] はそれぞれ$W_1, W_2$用のパラメータ$s$、bp\_param['rmsprop\_rho']、bp\_param['rmsprop\_epsilon'] はそれぞれテキストの$\rho, \epsilon$に対応したパラメータである。
+bp\_param['adadelta\_h1'], bp\_param['adadelta\_h2'] はそれぞれ$W_1, W_2$用のパラメータ$h$、bp\_param['adadelta\_s1'], bp\_param['adadelta\_s2'] はそれぞれ$W_1, W_2$用のパラメータ$s$、bp\_param['adadelta\_rho']、bp\_param['adadelta\_epsilon'] はそれぞれテキストの$\rho, \epsilon$に対応したパラメータである。
 
 \subsubsection*{実行結果}
 
-活性化関数を ReLU、最適化手法を AdaDelta にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.95, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-4-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、AdaDelta は、RMSProp や AdaGrad の改良版であるとのことから、最適化手法を RMSProp、AdaGrad にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
+活性化関数を ReLU、最適化手法を AdaDelta にして、バッチサイズ 100、パラメータの初期値を$\eta = 0.01, \rho = 0.95, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた(パラメータファイル名は param\_relu\_adadelta\_30.npz)。図 \ref{fig-A4-4-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、AdaDelta は、RMSProp や AdaGrad の改良版であるとのことから、最適化手法を RMSProp、AdaGrad にしてその他の条件を同じにして学習させた時のクロスエントロピー誤差の平均値もプロットしてある。
 
 \image{AdaGradとRMSPropの比較}{report_a4-4.png}{fig-A4-4-1}
 
@@ -485,7 +682,22 @@ bp\_param['adadelta\_h1'], bp\_param['adadelta\_h2'] はそれぞれ$W_1, W_2$�
 \subsection*{A4-5: 最適化手法の改良...Adam}
 
 \subsubsection*{実装内容}
-my\_nn\_learn.py に新しく adam 関数を定義した。adam 関数の内容は以下のソースコード \ref{A4-5-1}の通りである。
+my\_nn\_learn.py に新しく adam 関数を定義した。adam 関数の内容は以下のソースコード \ref{A4-5-1}の通りである。また、AdaDelta の計算式も示しておく。
+
+\begin{eqnarray}
+	\label{adam1}
+	t & \leftarrow & t + 1 \\
+	\label{adam2}
+	m & \leftarrow & \beta_1 m + (1-\beta_1)\frac{\partial E_n}{\partial W} \\
+	\label{adam3}
+	v & \leftarrow & \beta_2 v + (1-\beta_2)\frac{\partial E_n}{\partial W} \circ \frac{\partial E_n}{\partial W}\\
+	\label{adam4}
+	\hat{m} & \leftarrow & \frac{m}{1-\beta_1^t}\\
+	\label{adam5}
+	\hat{v} & \leftarrow & \frac{v}{1-\beta_2^t}\\
+	\label{adam6}
+	W & \leftarrow & W - \frac{\alpha \hat{m}}{\sqrt{\hat{v} + \epsilon}}
+\end{eqnarray}
 \begin{lstlisting}[caption="Adam",label=A4-5-1]
 def adam(nn, bp_data):
     nn.bp_param['adam_t'] = nn.bp_param['adam_t'] + 1
@@ -505,7 +717,8 @@ def adam(nn, bp_data):
     nn.network['b2'] -= nn.eta * bp_data['g_en_b2']
 \end{lstlisting}
 
-この関数を、誤差逆伝播法の勾配計算の後に、SGDの代わりに適用した。
+ソースコード\ref{A4-5-1} の2行目が式 (\ref{adam1}) 、5,6 行目が式 (\ref{adam2}) 、7,8行目が式(\ref{adam3})、9,10行目が式(\ref{adam4})、11,12行目が式(\ref{adam5})、13,14 行目が式(\ref{adam6}) に対応している。また 15,16 行目はバイアスの更新である。
+この関数を、誤差逆伝播法の勾配計算の後に適用した。
 
 また、クラス NNLearn 内にパラメータ $\rho, \epsilon$ の初期値を記入できるようにした。ソースコード\ref{A4-5-2}はパラメータ設定部のコードである。
 \begin{lstlisting}[caption="Adam のパラメータ設定部",label=A4-5-2]
@@ -525,9 +738,11 @@ class NNLearn:
     bp_param['adam_alpha'] = 10 ** (-3)
 \end{lstlisting}
 
+bp\_param['adam\_m1'], bp\_param['adam\_m2'] はそれぞれ$W_1, W_2$用のパラメータ$m$、bp\_param['adam\_v1'], bp\_param['adam\_v2'] はそれぞれ$W_1, W_2$用のパラメータ$v$、bp\_param['adam\_beta1']、\_param['adam\_beta2']、bp\_param['adam\_epsilon']、bp\_param['adam\_alpha']、はそれぞれテキストの$\beta_1, \beta_2, \epsilon, \alpha$に対応したパラメータである。
+
 \subsubsection*{実行結果}
 
-活性化関数を ReLU、最適化手法を Adam にして、バッチサイズ 100、パラメータの初期値を$\alpha = 0.001, \beta_1 = 0.9, \beta_2 = 0.999, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた。図 \ref{fig-A4-5-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、Adam は、AdaDelta の改良版であるとのことから、AdaDelta との比較も行う。
+活性化関数を ReLU、最適化手法を Adam にして、バッチサイズ 100、パラメータの初期値を$\alpha = 0.001, \beta_1 = 0.9, \beta_2 = 0.999, \epsilon = 10^{-8}$ に設定して 30 エポック学習させた(パラメータファイル名は param\_relu\_adam\_30.npz)。図 \ref{fig-A4-5-1} は学習回数と、クロスエントロピー誤差の平均値の変化のグラフである。なお、Adam は、AdaDelta の改良版であるとのことから、AdaDelta との比較も行う。
 
 \begin{figure}[H]
   \begin{center}
@@ -556,7 +771,7 @@ class NNLearn:
 
 \begin{table}[H]
 \begin{center}
-\caption{学習データでの認識精度(最適化手法での比較)}
+\caption{訓練データでの認識精度(最適化手法での比較)}
   \begin{tabular}{|c|c|} \hline
     最適化手法 & 認識精度  \\ \hline \hline
     SGD & 91.783 \% \\ \hline
@@ -610,5 +825,30 @@ class NNLearn:
 学習方針としては、モノクロ画像と同じように、画像の左上から画素値を配列として扱っている。ただし今回はRGBの3チャンネルあるので、R の画素値 32 * 32 個、G の 画素値 32 * 32 個、B の画素値 32 * 32 個をこの順番で配列に 1列に格納して学習させる。
 
 \subsubsection*{実行結果}
+
+はじめに、訓練データ data\_batch\_1 を用いて、バッチサイズ 100、エポック数 300 にして学習を行った。横軸に学習回数、縦軸にクロスエントロピー誤差の平均値をとったグラフを以下の図\ref{fig-A5-1} に示す。
+
+\image{学習経過とクロスエントロピー誤差の平均値(カラー画像)}{report_a5-1.png}{fig-A5-1}
+
+また、横軸にエポック数、縦軸に訓練データに対するAccuracy をとったグラフを以下の図 \ref{fig-A5-2} に示す。
+
+\image{学習経過と訓練データに対する認識精度(カラー画像)}{report_a5-2.png}{fig-A5-2}
+
+図 \ref{fig-A5-1}、図 \ref{fig-A5-2} より、カラー画像におけるパラメータの学習がうまく進んでいることが確認できる。\\
+
+次に、テストデータ 10000枚の画像について、学習したパラメータ(ファイル名は param\_color\_relu\_adam\_300.npz )を用いて、バッチサイズ 100、テスト回数100に設定して、テストデータに対する Accuracy を測定した。
+テストデータにおける Accuracy と訓練データにおける Accuracy の値を以下の表 \ref{tableA5-1} に示す。
+\begin{table}[H]
+\begin{center}
+\caption{認識精度(カラー画像)}
+  \begin{tabular}{|c|c|c|} \hline
+    テストデータ & 訓練データ & 差 \\ \hline \hline
+    38.000 \% & 85.978 \% & 47.978 \%\\ \hline
+  \end{tabular}
+	\label{tableA5-1}
+\end{center}
+\end{table}
+
+表 \ref{tableA5-1} から訓練データでは認識精度が高いが、テストデータに対してはかなり認識精度が低く、過学習が観測された。このような過学習は、訓練データのデータ数が少なく、かつ重みやバイアスの次元が高く、表現力が高いことや、畳み込み層やプーリング層のように画像の特徴量を抽出する層がないために発生したと考えられる。 
 
 \end{document}

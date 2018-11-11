@@ -170,7 +170,7 @@ class BatchNormalization:
                    d_en_var * np.sum(np.apply_along_axis(lambda l: l - self.avg, axis=0, arr=f_data['a1']), axis=1)
         tmp = np.apply_along_axis(lambda l: 2 * d_en_var * (l - self.avg), axis=0, arr=f_data['a1'])
         d_en_xi = np.apply_along_axis(lambda l: l / np.sqrt(self.var + self.epsilon), axis=0, arr=d_en_xhati) + \
-                  np.apply_along_axis(lambda l: (l + d_en_mub) / nn.batch_size, axis=0, arr=tmp)
+                  np.apply_along_axis(lambda l: (l / nn.m) + (d_en_mub / nn.batch_size), axis=0, arr=tmp)
         d_en_gamma = np.sum(y * self.x_hat, axis=1)
         d_en_beta = np.sum(y, axis=1)
         self.gamma -= d_en_gamma
